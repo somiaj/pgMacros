@@ -69,6 +69,8 @@ Create a parametric surface (x(u,v), y(u,v), z(u,v)) using Graph3D(option => val
   tex_size    Size of image in hardcopy TeX output as scale factor from 0 to 1000.
               1000 is 100%, 500 is 50%, etc.
 
+  tex_border  Put (1) or don't put (0) a border around image in TeX output.
+
   autoGen     Automatically generate the points using xFunc, yFunc, zFunc.
               Turn this off (0) to plot data.
 
@@ -92,27 +94,28 @@ sub new {
 
 	$plotlyCount++;
 	$self = bless {
-		id       => $plotlyCount,
-		width    => 500,
-		height   => 500,
-		uMin     => -5,
-		uMax     => 5,
-		uStep    => 0.1,
-		vMin     => -5,
-		vMax     => 5,
-		vStep    => 0.1,
-		xFunc    => sub { $_[0] },
-		yFunc    => sub { $_[1] },
-		zFunc    => sub { $_[0]**2 + $_[1]**2 },
-		autoGen  => 1,
-		xPoints  => '',
-		yPoints  => '',
-		zPoints  => '',
-		title    => '',
-		bgcolor  => '#f5f5f5',
-		style    => 'border: solid 2px; display: inline-block; margin: 5px; text-align: center;',
-		image    => '',
-		tex_size => 500,
+		id         => $plotlyCount,
+		width      => 500,
+		height     => 500,
+		uMin       => -5,
+		uMax       => 5,
+		uStep      => 0.1,
+		vMin       => -5,
+		vMax       => 5,
+		vStep      => 0.1,
+		xFunc      => sub { $_[0] },
+		yFunc      => sub { $_[1] },
+		zFunc      => sub { $_[0]**2 + $_[1]**2 },
+		autoGen    => 1,
+		xPoints    => '',
+		yPoints    => '',
+		zPoints    => '',
+		title      => '',
+		bgcolor    => '#f5f5f5',
+		style      => 'border: solid 2px; display: inline-block; margin: 5px; text-align: center;',
+		image      => '',
+		tex_size   => 500,
+		tex_border => 1,
 		@_,
 	}, $class;
 
@@ -150,8 +153,9 @@ sub buildArray {
 sub TeX {
 	my $self  = shift;
 	my $size  = $self->{tex_size}*0.001;
-	my $out   = "\\fbox{\\begin{minipage}{$size\\linewidth}\\centering\n";
-	$out .= ($self->{title}) ? "{\\bf $self->{title}} \\\\\n" : '';
+	my $out   = ($self->{tex_border}) ? '\fbox{' : '\mbox{';
+	$out      .= "\\begin{minipage}{$size\\linewidth}\\centering\n";
+	$out      .= ($self->{title}) ? "{\\bf $self->{title}} \\\\\n" : '';
 	if ($self->{image}) {
 		$out .= &main::image($self->{image}, tex_size => 950);
 	} else {

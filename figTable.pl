@@ -21,7 +21,7 @@ sub figTable {
 	my $loc       = $options{caption_loc};
 	my $html_tags = $options{extra_html_tags} . 'style="margin:' . $padding . 'px;" class="d-block mx-auto figure-img img-fuild"';
 	my %img_options = (
-		tex_size        => $options{tex_size},
+		tex_size        => 950,
 		alt             => $options{alt},
 		extra_html_tags => $html_tags,
 	);
@@ -31,12 +31,13 @@ sub figTable {
 	my $figimg = ($options{isImage}) ? &image($img, %img_options) : $img;
 	if ($displayMode eq 'TeX') {
 		my $pad   = $options{padding} - 10;
+		my $size  = $options{tex_size}*0.001;
 		$caption  = "{\\bf $caption}";
-		$out     .= '{\begin{tabular}{|c|}\hline';
-		$out     .= "\n" . $caption . "\\\\\\hline\n" if ($loc =~ /^top$/i);
-		$out     .= "\\\\[${pad}pt]\n" . $figimg . "\\\\[$options{padding}pt]\\hline";
-		$out     .= "\n" . $caption . "\n\\\\\\hline" if ($loc =~ /^bottom$/i);
-		$out     .= '\end{tabular}}';
+		$out     .= "\\fbox{\\begin{minipage}{$size\\linewidth}\\centering\n";
+		$out     .= "$caption \\\\\n" if ($loc =~ /^top$/i);
+		$out     .= "$figimg \\\\\n";
+		$out     .= "$caption \\\\\n" if ($loc =~ /^bottom$/i);
+		$out     .= "\\end{minipage}}\n"
 	} elsif ($displayMode =~ /^HTML/) {
 		$figimg  =~ s/image-view-elt/image-view-elt d-block mx-auto figure-img img-fuild/;
 		$caption = " <strong>$caption</strong> ";
