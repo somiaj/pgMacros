@@ -79,6 +79,15 @@ Check if a list is an injective function:
 				valid points in the list.
 				Default: 1
 
+	isIncreasing => {0,1}  Check if the function is increasing.
+				Default: 0
+
+	isDecreasing => {0,1}  Check if the function is decreasing.
+				Default: 0
+
+	isStrict => {0,1}      Make Increasing/Decreasing check strictly.
+				Default: 0
+
 =cut
 
 $funcChecker = sub {
@@ -92,6 +101,9 @@ $funcChecker = sub {
 	my $setProduct = $ansHash->{setProduct} || '\(A\times B\)';
 	my $isInjective = $ansHash->{isInjective} || 0;
 	my $isSurjective = $ansHash->{isSurjective} || 0;
+	my $isIncreasing = $ansHash->{isIncreasing} || 0;
+	my $isDecreasing = $ansHash->{isDecreasing} || 0;
+	my $isStrict = $ansHash->{isStrict} || 0;
 	if ($ansHash->{isBijective}) {
 		$isInjective = 1;
 		$isSurjective = 1;
@@ -166,9 +178,45 @@ $funcChecker = sub {
 		$score = $unique if ($score > $unique);
 	}
 
-	# No partial credit if checking for injective/surjective/biejctive
+	# No partial credit if checking for injective/surjective/bijective
 	# functions and the list isn't a valid function.
 	$score = 0 if (!$isFunction && ($isInjective || $isSurjective));
+
+	# Check if increasing or decreasing.
+	if ($isFunction && ($isIncreasing || $isDecreasing)) {
+		my $check = 1;
+		my $strict = ($isStrict) ? ' strictly' : '';
+		for (my $i = 1; $i < $n; $i++) {
+			my ($x1, $y1) = $student->[$i]->value;
+			for (my $j = 0; $j < $i; $j++) {
+				my ($x2, $y2) = $student->[$j]->value;
+				if ($isIncreasing &&
+					(
+						($x1 < $x2 && $y1 > $y2) ||
+						($x2 < $x1 && $y2 > $y1) ||
+						($isStrict && $y1 == $y2)
+					))
+				{
+					$score = 0;
+					$check = 0;
+					push(@errors, "This function is not$strict increasing.");
+				}
+				if ($isDecreasing &&
+					(
+						($x1 < $x2 && $y1 < $y2) ||
+						($x2 < $x1 && $y2 < $y1) ||
+						($isStrict && $y1 == $y2)
+					))
+				{
+					$score = 0;
+					$check = 0;
+					push(@errors, "This function is not$strict decreasing.");
+				}
+				last unless ($check);
+			}
+			last unless ($check);
+		}
+	}
 
 	undef @errors if ($hideWarnings);
 	return($score, @errors);
