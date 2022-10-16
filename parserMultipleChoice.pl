@@ -25,7 +25,7 @@ PGML.
 
 To create a MultipleChoice object, use
 
-	$mc = MultipleChoice([choices,...], correct, labels);
+	$mc = MultipleChoice([choices,...], correct, labels, options);
 
 where "choices" are the strings for the items in the answer list,
 and "correct" are the string(s) (or index(s), with 0 being the first
@@ -64,6 +64,8 @@ before and after the label to put before and/or after the label during
 generation. The default string is 'A.', capital letters followed by
 a period. A string '(1)' will use numbers surrounded by parenthesis.
 'I:' would be upper case roman numerals followed by a colon.
+
+Last "options" are a hash, option => value, of options. See below.
 
 By default, the choices are left in the order that you provide them,
 but you can cause some or all of them to be ordered randomly by
@@ -112,7 +114,9 @@ get answer rules).
 
 After the MultipleChoice object is created you can modify the object to gain
 additional control. Since the labels show up in the TeX and PTX output modes,
-be sure to to use PG variables or MODES instead of pure HTML.
+be sure to to use PG variables or MODES instead of pure HTML. Options can
+be provided via the orignal call to the MultipleChoice function using
+option => value, or modified after the creation of the MultiplecChoice object.
 
 $mc->updateLabels(labels)         Updates the labels according to a new string or
                                   list as described above.
@@ -142,7 +146,7 @@ package parser::MultipleChoice;
 our @ISA = ('Value::String');
 my $context;
 
-#  Setup the context and the MultipleChoice() command.
+# Setup the context and the MultipleChoice() command.
 sub Init {
 	# Make a context in which arbitrary strings can be entered.
 	$context = Parser::Context->getCopy('Numeric');
@@ -184,12 +188,9 @@ sub new {
 		separator   => $main::BR,
 		checkboxes  => 1,
 		showLabels  => 1,
-		attempts    => 0,
-		maxAttempts => 0,
-		attemptStr  => 'xN',
-		trackChange => 0,
 		answers     => [],
 		name        => undef,
+		@_
 	}, $class;
 	$self->getChoiceOrder;
 	$self->getCorrectAns($choices, $values);
@@ -266,7 +267,7 @@ sub updateLabels {
 
 	if (ref($labels) eq 'ARRAY') { # TODO: Add protection for special characters and/or length in user provided lists
 		@charList = (@$labels);
-		Value->Error('You must supply enough labels for all items.') unless ($#charList > $#{$self->{choices}});
+		Value->Error('You must supply enough labels for all items.') unless ($#charList >= $#{$self->{choices}});
 	} elsif (defined($labels) && uc($labels) eq 'NONE') {
 		$self->{showLabels} = 0;
 		@charList = ('First item', 'Second item', 'Third item', 'Fourth item', 'Fifth item',
@@ -287,14 +288,14 @@ sub updateLabels {
 			@charList = ('I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X',
 				'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX');
 		} elsif ($char =~ /[a-z]/) {
-			@charList = (a..z);
+			@charList = ('a'..'z');
 		} elsif ($char =~ /\d/) {
 			@charList = (1..20);
 		} else {
-			@charList = (A..Z);
+			@charList = ('A'..'Z');
 		}
 	} else {
-		@charList = (A..Z);
+		@charList = ('A'..'Z');
 	}
 	$self->{labels} = [@charList[0..$#{$self->{choices}}]];
 	$self->{data}[0] = join(', ', $self->correct_ans);
@@ -328,18 +329,6 @@ sub getAnswers {
 	$self->{answers}      = [$self->getAnsList(1, $value)];
 	return $value;
 }
-sub escapeAttempts {
-	my $self  = shift;
-	return $self->{attemptStr} . $self->{attempts};
-}
-sub getAttempts {
-	my $self  = shift;
-	my $value = shift;
-	return -1 unless $value;
-	my $as    = $self->{attemptStr};
-	return $1 if ($value =~ /^$as(\d+)$/);
-	return -1;
-}
 sub cmpList {
 	my $self = shift;
 	return 0 unless (scalar $self->answers > 0);
@@ -364,16 +353,10 @@ sub getAnsList {
 	my $split_str  = ('\x{fffd}', '\0', ', ')[$type];
 	$answer_str    =~ s/^\[|\]$//g if ($type == 2);
 	my @answers    = split($split_str, $answer_str);
-	my $attempts   = $self->getAttempts($answers[-1]);
-	if ($attempts != -1) {
-		$self->{attempts} = $attempts if ($type == 1);
-		pop(@answers);
-	}
 	return @answers;
 }
 
-# Prints the radio buttons or checkboxes and adds the
-# number of attempts and previous answer hidden inputs.
+# Prints the radio buttons or checkboxes.
 sub PRINT_BUTTONS {
 	my $self    = shift;
 	my @buttons = @_;
@@ -383,7 +366,6 @@ sub PRINT_BUTTONS {
 	# Print button list
 	my $label      = main::generate_aria_label($name);
 	my $buttonType = ($self->{checkboxes}) ? 'checkbox' : 'radio';
-	my $attempts   = $self->escapeAttempts;
 	my @out        = ();
 	my $count      = 0;
 	while (@buttons) {
@@ -395,7 +377,6 @@ sub PRINT_BUTTONS {
 		push(@out, qq!<label><input type="$buttonType" name="$name" id="${name}$countstr" aria-label="${label}option $count" value="$value" $checked>$item</label>!);
 	}
 	my $out_str = join("\n" . $self->{separator}, @out);
-	$out_str .= qq!<input id="${name}_$self->{attemptStr}" type="hidden" name="$name" value="$attempts">! if $self->{trackAttempts};
 	return $out_str;
 }
 sub PRINT {
@@ -414,7 +395,6 @@ sub PRINT {
 			$i++;
 		}
 		$out = $self->PRINT_BUTTONS(@buttons);
-		$out .= $self->JavaScript;
 	} elsif ($main::displayMode eq 'PTX') {
 		my $formType = $self->{checkboxes} ? 'checkboxes' : 'buttons';
 		my $i        = 0;
@@ -453,23 +433,8 @@ sub PRINT {
 	main::INSERT_RESPONSE($options{answer_group_name}, $name, $value) if $extend;
 	return $out;
 }
-# Javascript to count number of submits in which the answer changes
-sub JavaScript {
-	my $self = shift;
-	return '' unless $self->{trackChange};
-	my $as = $self->{attemptStr};
-	my $name = $self->{name};
-	my $thisId = $name . '_' . $as;
-	return if $jsPrinted || $main::displayMode eq 'TeX';
-	return '<script>' .
-		"document.addEventListener('DOMContentLoaded', function() {" .
-		"document.getElementById('problemMainForm').addEventListener('submit', function(e) {" .
-		"document.getElementById('$thisId').value = '${as}7'; })});" .
-		'</script>';
-}
 
-# Uses cmp_postprocess to remove the attempts from the answer
-# and compare the students responses to the correct answer.
+# Uses cmp_postprocess to compare the students responses to the correct answer.
 sub typeMatch { return 1; }
 sub cmp_defaults {(
 	shift->SUPER::cmp_defaults(@_),
@@ -497,8 +462,6 @@ sub cmp_postprocess {
 	# Grade answer
 	$ans->{score} = ($ans->{partialCredit} && $self->{checkboxes}) ? $self->cmpListTF : $self->cmpList;
 
-	# Check attempts
-	$ans->{ans_message} = "You have used $self->{attempts} attempts on this part." if $self->{trackAttempts};
 	return $ans;
 }
 
