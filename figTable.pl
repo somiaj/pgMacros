@@ -19,7 +19,7 @@ sub figTable {
 	my $padding   = $options{padding};
 	my $caption   = $options{caption};
 	my $loc       = $options{caption_loc};
-	my $html_tags = $options{extra_html_tags} . 'style="margin:' . $padding . 'px;" class="d-block mx-auto figure-img img-fuild"';
+	my $html_tags = $options{extra_html_tags};
 	my %img_options = (
 		tex_size        => 950,
 		alt             => $options{alt},
@@ -42,9 +42,9 @@ sub figTable {
 		$figimg  =~ s/image-view-elt/image-view-elt d-block mx-auto figure-img img-fuild/;
 		$caption = " <strong>$caption</strong> ";
 		$out    .= "<figure class='figure border border-2 border-dark'>";
-		$out    .= '<figcaption class="figure-caption text-dark text-center border border-2 p-2">' . $caption . '</figcaption>' if ($loc =~ /^top$/i);
-		$out    .= $figimg;
-		$out    .= '<figcaption class="figure-caption text-dark text-center border border-2 p-2">' . $caption . '</figcaption>' if ($loc =~ /^bottom$/i);
+		$out    .= '<figcaption class="figure-caption text-dark text-center p-2">' . $caption . '</figcaption>' if ($loc =~ /^top$/i);
+		$out    .= '<div class="m-2">' . $figimg . '</div>';
+		$out    .= '<figcaption class="figure-caption text-dark text-center p-2">' . $caption . '</figcaption>' if ($loc =~ /^bottom$/i);
 		$out    .= '</figure>';
 	} else {
 		$out = "Error: figTable: Unknown displayMode: $displayMode.\n";
