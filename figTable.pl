@@ -41,7 +41,7 @@ sub figTable {
 		$out     .= "\\end{minipage}}\n"
 	} elsif ($displayMode =~ /^HTML/) {
 		my $cap_style = 'figure-caption text-dark text-center border-bottom border-dark p-2';
-		my $div_style = ' ';
+		my $div_style = '';
 		if ($options{div_height} || $options{div_width}) {
 			$div_style = 'style="';
 			$div_style .= "height: $options{div_height}px;" if ($options{div_height});
@@ -52,7 +52,7 @@ sub figTable {
 		$caption = " <strong>$caption</strong> ";
 		$out    .= "<figure class='figure border border-2 border-dark'>";
 		$out    .= '<figcaption class="' . $cap_style . '">' . $caption . '</figcaption>' if ($loc =~ /^top$/i);
-		$out    .= '<div' . $div_style . 'class="m-2">' . $figimg . '</div>';
+		$out    .= '<div ' . $div_style . 'class="m-2">' . $figimg . '</div>';
 		$out    .= '<figcaption class="' . $cap_style . '">' . $caption . '</figcaption>' if ($loc =~ /^bottom$/i);
 		$out    .= '</figure>';
 	} else {
