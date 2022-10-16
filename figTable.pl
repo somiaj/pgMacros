@@ -8,7 +8,6 @@ sub figTable {
 	my %options = (
 		tex_size    => 500,
 		alt         => '',
-		padding     => 5,
 		caption     => 'Image',
 		caption_loc => 'top',
 		isImage     => 1,
@@ -16,7 +15,6 @@ sub figTable {
 	);
 
 	$options{alt} = $options{caption} unless $options{alt};
-	my $padding   = $options{padding};
 	my $caption   = $options{caption};
 	my $loc       = $options{caption_loc};
 	my $html_tags = $options{extra_html_tags};
@@ -30,7 +28,6 @@ sub figTable {
 
 	my $figimg = ($options{isImage}) ? &image($img, %img_options) : $img;
 	if ($displayMode eq 'TeX') {
-		my $pad   = $options{padding} - 10;
 		my $size  = $options{tex_size}*0.001;
 		$caption  = "{\\bf $caption}";
 		$out     .= "\\fbox{\\begin{minipage}{$size\\linewidth}\\centering\n";
@@ -39,12 +36,13 @@ sub figTable {
 		$out     .= "$caption \\\\\n" if ($loc =~ /^bottom$/i);
 		$out     .= "\\end{minipage}}\n"
 	} elsif ($displayMode =~ /^HTML/) {
+		my $cap_style = 'figure-caption text-dark text-center border-bottom border-dark p-2';
 		$figimg  =~ s/image-view-elt/image-view-elt d-block mx-auto figure-img img-fuild/;
 		$caption = " <strong>$caption</strong> ";
 		$out    .= "<figure class='figure border border-2 border-dark'>";
-		$out    .= '<figcaption class="figure-caption text-dark text-center p-2">' . $caption . '</figcaption>' if ($loc =~ /^top$/i);
+		$out    .= '<figcaption class="' . $cap_style . '">' . $caption . '</figcaption>' if ($loc =~ /^top$/i);
 		$out    .= '<div class="m-2">' . $figimg . '</div>';
-		$out    .= '<figcaption class="figure-caption text-dark text-center p-2">' . $caption . '</figcaption>' if ($loc =~ /^bottom$/i);
+		$out    .= '<figcaption class="' . $cap_style . '">' . $caption . '</figcaption>' if ($loc =~ /^bottom$/i);
 		$out    .= '</figure>';
 	} else {
 		$out = "Error: figTable: Unknown displayMode: $displayMode.\n";
