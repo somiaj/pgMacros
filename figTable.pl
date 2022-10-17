@@ -6,15 +6,19 @@ sub figTable {
 
 	# standard options
 	my %options = (
-		tex_size    => 500,
-		alt         => '',
-		caption     => 'Image',
-		caption_loc => 'top',
-		isImage     => 1,
-		height      => 0,
-		width       => 0,
-		div_height  => 0,
-		div_width   => 0,
+		tex_size        => 500,
+		alt             => '',
+		caption         => 'Image',
+		caption_loc     => 'top',
+		isImage         => 1,
+		height          => 0,
+		width           => 0,
+		div_height      => 0,
+		div_width       => 0,
+		fig_class       => 'border border-2 border-dark',
+		fig_class_extra => 'm-2',
+		cap_class       => 'text-dark text-center border-bottom border-dark p-2',
+		extra_html_tags => '',
 		@_
 	);
 
@@ -40,7 +44,8 @@ sub figTable {
 		$out     .= "$caption \\\\\n" if ($loc =~ /^bottom$/i);
 		$out     .= "\\end{minipage}}\n"
 	} elsif ($displayMode =~ /^HTML/) {
-		my $cap_style = 'figure-caption text-dark text-center border-bottom border-dark p-2';
+		my $fig_class = "figure $options{fig_class} $options{fig_class_extra}";
+		my $cap_class = "figure-caption $options{cap_class}";
 		my $div_style = '';
 		if ($options{div_height} || $options{div_width}) {
 			$div_style = 'style="';
@@ -50,14 +55,14 @@ sub figTable {
 		}
 		$figimg  =~ s/image-view-elt/image-view-elt d-block mx-auto figure-img img-fuild/;
 		$caption = " <strong>$caption</strong> ";
-		$out    .= "<figure class='figure border border-2 border-dark'>";
-		$out    .= '<figcaption class="' . $cap_style . '">' . $caption . '</figcaption>' if ($loc =~ /^top$/i);
+		$out    .= '<figure class="' . $fig_class . '">';
+		$out    .= '<figcaption class="' . $cap_class . '">' . $caption . '</figcaption>' if ($loc =~ /^top$/i);
 		$out    .= '<div ' . $div_style . 'class="m-2">' . $figimg . '</div>';
-		$out    .= '<figcaption class="' . $cap_style . '">' . $caption . '</figcaption>' if ($loc =~ /^bottom$/i);
+		$out    .= '<figcaption class="' . $cap_class . '">' . $caption . '</figcaption>' if ($loc =~ /^bottom$/i);
 		$out    .= '</figure>';
 	} else {
 		$out = "Error: figTable: Unknown displayMode: $displayMode.\n";
 		warn $out;
 	}
-	$out;
+	return $out;
 }
