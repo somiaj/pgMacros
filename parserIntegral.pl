@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-parserIntegral - A parserMultiAnswer.pl wapper for creating integrals in which there
+parserIntegral - Create an Integral value object in which there are
 are answer boxes for the bounds, integrand, and differential.
 
 =head1 DESCRIPTION
@@ -35,7 +35,21 @@ This is not done automatically and you will get errors if using undefined variab
 
 SingleIntegral Example:
 
-    $singleInt = SingleIntegral({dx => { func => 'x^2', bounds => [[0, 3]] }});
+    $singleInt = SingleIntegral({ dx => { func => 'x^2', bounds => [[0, 3]] }});
+
+Allow constant variables in the bounds. A FTC example:
+
+    # f(t) = int_0^t 2x dx
+    Context()->variables->are(
+        x  => 'Real',
+        t  => 'Real',
+        dx => 'Real',
+    );
+    $singleInt = SingleIntegral(
+        { dx => { func => '2x', bounds => [[0, 't']] }},
+        constantVars => ['t'],
+        label => 'f(t)',
+    );
 
 DoubleIntegral Example:
 
@@ -57,62 +71,74 @@ be entered in different coordinate systems.
         dr     => 'Real',
         dtheta => ['Real', TeX => 'd\theta '],
     );
-    $doubleInt = DoubleIntegral({
-        dxdy     => { func => 'x^2 + y^2', bounds => [[0, 2], [0, 'sqrt(4-y^2)']] },
-        dydx     => { func => 'x^2 + y^2', bounds => [[0, 2], [0, 'sqrt(4-x^2)']] },
-        drdtheta => { func => 'r^3', bounds => [[0, 'pi/2'], [0,2]] },
-        dthetadr => { func => 'r^3', bounds => [[0, 2], [0, 'pi/2']] },
-    });
+    $doubleInt = DoubleIntegral(
+        {
+            dxdy     => { func => 'x^2 + y^2', bounds => [[0, 2], [0, 'sqrt(4-y^2)']] },
+            dydx     => { func => 'x^2 + y^2', bounds => [[0, 2], [0, 'sqrt(4-x^2)']] },
+            drdtheta => { func => 'r^3', bounds => [[0, 'pi/2'], [0,2]] },
+            dthetadr => { func => 'r^3', bounds => [[0, 2], [0, 'pi/2']] },
+        },
+        dAkey => 'drdtheta', # Set initial answer key (otherwise based on random hash order)
+    );
 
-TripleIntegral Example:
+TripleIntegral Example (bounds can be entered in any order):
 
-    $tripleInt = TripleIntegral({ func => '7x + 8y + 9z', bounds => [[1, 2], [3, 4], [5, 6]] });
+    $tripleInt = TripleIntegral(
+        { func => '7x + 8y + 9z', bounds => [[1, 2], [3, 4], [5, 6]] },
+        swapBounds => 1
+    );
 
 =head1 OPTIONS
 
 The following list of options, option => value, can be added after the integral hash.
 
-    dAkey        => key,       The integral hash key used as the initial correct answer.
-                               Displayed correct answer will change to match student's differential.
-                               Default is the last integral found when looping through hash.
+    dAkey         => key,       The integral hash key used as the initial correct answer.
+                                Displayed correct answer will change to match student's differential.
+                                Default is the last integral found when looping through hash.
 
-    showWarnings => {0, 1},    Print warnings when checking student's answer.
-                               This includes both checking if an integral is valid
-                               and which is the first incorrect answer piece.
-                               Default is the value of $showPartialCorrectAnswers.
+    showWarnings  => {0, 1},    Print warnings when checking student's answer.
+                                This includes both checking if an integral is valid
+                                and which is the first incorrect answer part.
+                                Default is the value of $showPartialCorrectAnswers.
 
-    swapBounds   => {0, 1},    Generate all permutations of the integral bounds and
-                               differential if the bounds only contain constants.
-                               Default is 0.
+    partialCredit => {0, 1},    Give partial credit for each correct answer box.
+                                Default is the value of $showPartialCorrectAnswers.
 
-    constantVars => [array],   An array of variables which can be treated as constants,
-                               which can be used in the bounds and integrand.
-                               Default is [] (empty).
+    swapBounds    => {0, 1},    Generate all permutations of the integral bounds and
+                                differential if the bounds only contain constants.
+                                Default is 0.
 
-    size         => percent,   The percent size of the integral symbol and parenthesis
-                               around the integrand in HTML ans_rule output.
-                               Default is 150.
+    constantVars  => [array],   An array of variables which can be treated as constants,
+                                which can be used in the bounds and integrand.
+                                Default is [] (empty).
 
-    label        => TeX,       An optional TeX label that is put before the output of
-                               the integral TeX and ans_rule output.
-                               Default is '' (no label).
+    size          => percent,   The percent size of the integral symbol and parenthesis
+                                around the integrand in HTML ans_rule output.
+                                Default is 150.
 
-    labelSize    => percent,   The percent size of the label.
-                               Default is 100.
+    label         => TeX,       An optional TeX label that is put before the output of
+                                the integral TeX and ans_rule output.
+                                Default is '' (no label).
+
+    labelSize     => percent,   The percent size of the label.
+                                Default is 100.
 
 =name1 TODO - WISHLIST
 
-Remove dependency on parserMultiAnswer.pl.
+showWarnings and partialCredit should really be be cmp options and
+not object options. But this at least works.
 
 Add a parser that could work with MathQuill so students have to enter
 the integral into MathQuill. The string output matches what MathQuill
 would produce in an ideal case (nothing multiplied on the outside of
 of integrals, and not adding integrals together).
 
+Clean up code -- I've rewritten this multiple times, probably redudent,
+extra code floating around.
+
 =cut
 
 sub _parserIntegral_init {
-	main::loadMacros('parserMultiAnswer2.pl'); # Use a modified version.
 	main::PG_restricted_eval('sub SingleIntegral {parser::Integral->new(1, @_)}');
 	main::PG_restricted_eval('sub DoubleIntegral {parser::Integral->new(2, @_)}');
 	main::PG_restricted_eval('sub TripleIntegral {parser::Integral->new(3, @_)}');
@@ -120,6 +146,8 @@ sub _parserIntegral_init {
 
 package parser::Integral;
 our @ISA = ('Value');
+
+our $answerPrefix = 'InTeGrAl_';
 
 sub new {
 	my $self    = shift;
@@ -131,8 +159,8 @@ sub new {
 	$ints = \%$ints if (ref($ints) eq 'ARRAY' && scalar(@$ints) % 2 == 0);    # Convert ARRAY to hash if possible
 	Value::Error('Input must be a HASH of integrals') unless (ref($ints) eq 'HASH');
 
-	# Convert everything to Formula's as needed.
-	# This prevents type errors if students enter in a formula for a constant bound.
+	# Check hash and convert everything to Formula's as needed.
+	# This prevents type errors if students enter in a Formula for a constant bound.
 	foreach my $dA (keys %$ints) {
 		$ints->{$dA}{diff} = main::Formula($dA);
 		Value::Error('Integrand func is not defined for differential %s.', $dA) unless (defined($ints->{$dA}{func}));
@@ -148,9 +176,9 @@ sub new {
 	}
 
 	$self = bless {
-		ma            => undef,
 		context       => $context,
 		isValue       => 1,
+		type          => 'Integral',
 		num           => $num,
 		integrals     => $ints,
 		dAkey         => $dAkey,
@@ -166,12 +194,29 @@ sub new {
 
 	# Check integrals
 	foreach (keys %$ints) { $self->checkIntegral($ints->{$_}); }
-	# Swap bounds if configured and variables aren't used in bounds.
 	$self->swapAllBounds if ($self->{swapBounds} && $num > 1);
-	# Create MultiAnswer object.
-	$self->makeMultiAnswer;
 
 	return $self;
+}
+
+# Return the i-th (starting from 0) Value object.
+# Bounds (lower then upper), integrand, then differential.
+sub data {
+	my $self = shift;
+	my $i    = shift;
+	my $dA   = $self->{dAkey};
+	my $int  = $self->{integrals}{$dA};
+	my $num  = $self->{num};
+	if ($i < 2 * $num) {
+		my $n = int($i/2);
+		my $k = $i % 2;
+		return $int->{bounds}[$n][$k];
+	} elsif ($i == 2 * $num) {
+		return $int->{func};
+	} elsif ($i == 2 * $num + 1) {
+		return $int->{diff};
+	}
+	return $i;
 }
 
 # Check integral integrity.
@@ -244,6 +289,9 @@ sub testVars {
 	return (scalar(%{ $item->{variables} }) == $used);
 }
 
+# Fischer-Krause ordered permutation generator.
+# Generates the next larger permutation of a number array.
+# Returns empty array for maximum permutation.
 sub permute {
 	my $self = shift;
 	my @in   = @_;
@@ -288,6 +336,90 @@ sub swapAllBounds {
 	}
 }
 
+# Build answer evaluator.
+sub cmp {
+	my $self = shift;
+	my $ans  = new AnswerEvaluator;
+
+	$ans->ans_hash(
+		type                     => 'Integral',
+		correct_ans              => $self->string,
+		correct_ans_latex_string => $self->TeX,
+		correct_value            => $self,
+		debug                    => 1,
+		@_,
+	);
+	$ans->install_pre_filter('erase'); # Remove blank filter.
+	$ans->install_pre_filter(sub { my $ans = shift; (shift)->cmp_preprocess($ans) }, $self);
+	$ans->install_evaluator(sub { my $ans = shift; (shift)->cmp_int($ans) }, $self);
+	return $ans;
+}
+
+# Get student answers and build integral.
+sub cmp_preprocess {
+	my $self    = shift;
+	my $ans     = shift;
+	my $num     = $self->{num};
+	my $context = $self->{context};
+	my $inputs  = $main::inputs_ref;
+	$ans->{_filter_name} = 'Build Integral';
+
+	# Build student answer
+	my @answers;
+	foreach (0 .. 2*$num + 1) {
+		push(@answers, Value::makeValue($inputs->{ $self->ANS_NAME($_) }, context => $context));
+	}
+	$ans->{original_student_ans} = join(' ; ', @answers);
+	my $diff = pop(@answers);
+	my $func = pop(@answers);
+	my $bounds = [map { [shift(@answers), shift(@answers)] } 1..$num];
+	my $integral = { bounds => $bounds, func => $func, diff => $diff };
+
+	$ans->{integral} = $integral;
+	$ans->{student_ans} = $self->printString($integral);
+	$ans->{preview_text_string} = $ans->{student_ans};
+	$ans->{preview_latex_string} = $self->printTeX($integral);
+	return $ans;
+}
+
+# Check integral
+sub cmp_int {
+	my $self      = shift;
+	my $ans       = shift;
+	my $num       = $self->{num};
+	my $integrals = $self->{integrals};
+	$ans->{_filter_name} = 'Check Integral';
+
+	# Stop if previewing answer.
+	return $ans if $ansHash->{isPreview};
+
+	my $ans_int  = $ans->{integral};
+	my $score    = 0;
+	my $errorMsg = '';
+
+	# Find integral based off of student's differential
+	my $s_dA = $ans_int->{diff}->string =~ s/\*//gr;
+	if (defined($integrals->{$s_dA})) {
+		$score++;
+	} else {
+		$errorMsg = "The differential $s_dA is invalid for this integral.";
+		$s_dA     = $self->{dAkey};
+	}
+	$ans->{correct_ans_latex_string} = $self->printTeX($integrals->{$s_dA});
+
+	# Compare answer and compute score.
+	my ($intCheck, $intMsg) = $self->checkIntegral($ans_int, 2);
+	my ($cmpScore, $cmpMsg) = $self->cmpIntegrals($integrals->{$s_dA}, $ans_int);
+	$score += $cmpScore;
+	$score /= 2 * ($num + 1);                                  # Trun score into a percent.
+	$score    = main::min(0.75, $score) unless ($intCheck);    # Max score is 75% if checkIntegral fails.
+	$errorMsg = ($errorMsg) ? $errorMsg : ($intMsg) ? $intMsg : $cmpMsg;
+
+	$ans->{ans_message} = $errorMsg if ($errorMsg && $self->{showWarnings});
+	$ans->{score} = $self->{partialCredit} ? $score : ($score == 1);
+	return $ans;
+}
+
 # Checks if two integrals are the same. Issues warnings if configured.
 # First integral should be the correct integral and second the answer.
 sub cmpIntegrals {
@@ -324,64 +456,6 @@ sub cmpIntegrals {
 	return ($score, $errorMsg);
 }
 
-sub makeMultiAnswer {
-	my $self      = shift;
-	my $dAkey     = $self->{dAkey};
-	my $integrals = $self->{integrals};
-	my $integral  = $integrals->{$dAkey};
-	my $num       = $self->{num};
-	my @bounds    = map { @{ $integral->{bounds}->[$_] } } 0 .. $num - 1;
-
-	$self->{ma} = main::MultiAnswer(@bounds, $integral->{func}, $integral->{diff})->with(
-		singleResult     => 1,
-		allowBlankAnswer => 0,
-		checkTypes       => 1,
-		format           => 'int(%s, %s) ' x $num . '(%s) %s',
-		tex_format       => '\int_{%s}^{%s} ' x $num . '\left(%s\right)\, %s',
-		checker          => sub {
-			my ($correct, $student, $ma, $ansHash) = @_;
-
-			# Stop if previewing answer.
-			return 0 if $ansHash->{isPreview};
-
-			# Alternate variables to simplify coding syntax.
-			my @c        = @{$correct};
-			my @s        = @{$student};
-			my $score    = 0;
-			my $errorMsg = '';
-
-			# Find integral based off of student's differential
-			my $s_dA = $s[ 2 * $num + 1 ]->string =~ s/\*//gr;
-			if (defined($integrals->{$s_dA})) {
-				$score++;
-			} else {
-				$errorMsg = "The differential $s_dA is invalid for this integral.";
-				$s_dA     = $dAkey;
-			}
-			$ansHash->{correct_ans_latex_string} = $self->printTeX($s_dA);
-
-			# Build student integral, compare answer, and compute score.
-			my @bounds = ();
-			foreach (0 .. $num - 1) { push(@bounds, [ $s[ 2 * $_ ], $s[ 2 * $_ + 1 ] ]); }
-			my $sint = { func => $s[ 2 * $num ], bounds => [@bounds], diff => $s[ 2 * $num + 1 ] };
-			my ($intCheck, $intMsg) = $self->checkIntegral($sint, 2);
-			my ($cmpScore, $cmpMsg) = $self->cmpIntegrals($integrals->{$s_dA}, $sint);
-			$score += $cmpScore;
-			$score /= 2 * ($num + 1);                                  # Trun score into a percent.
-			$score    = main::min(0.75, $score) unless ($intCheck);    # Max score is 75% if checkIntegral fails.
-			$errorMsg = ($errorMsg) ? $errorMsg : ($intMsg) ? $intMsg : $cmpMsg;
-
-			if ($self->{partialCredit}) {
-				$ma->setMessage(1, $errorMsg) if ($errorMsg && $self->{showWarnings});
-				return $score;
-			} else {
-				Value::Error($errorMsg) if ($errorMsg && $self->{showwarnings});
-				return ($score == 1);
-			}
-		}
-	);
-}
-
 sub boundString {
 	my $self = shift;
 	my $this = shift;
@@ -398,14 +472,15 @@ sub printIntegral {
 	my $size  = $self->{size};
 	my $label = $self->{label} || '';
 	my $out   = '';
+	my $i     = 0;
 
 	# Create answer rules from MultiAnswer object.
 	my (@lb, @ub);
 	foreach (0 .. $num) {
-		$lb[$_] = $self->{ma}->ans_rule(1);
-		$ub[$_] = $self->{ma}->ans_rule(1);
+		$lb[$_] = $self->mk_ans_rule($i++);
+		$ub[$_] = $self->mk_ans_rule($i++);
 	}
-	my ($func, $diff) = ($self->{ma}->ans_rule(1), $self->{ma}->ans_rule(1));
+	my ($func, $diff) = ($self->mk_ans_rule($i++), $self->mk_ans_rule($i++));
 
 	# Deal with TeX and non HTML display modes.
 	if ($main::displayMode eq 'TeX') {
@@ -425,7 +500,7 @@ sub printIntegral {
     <div style="grid-row-start: 1; grid-row-end: 2;"></div>
     <div style="grid-row-start: 2; grid-row-end: 3;">
         <div style="display: flex; flex-wrap: nowrap; flex-direction: row; align-items: center; justify-content: center; height: 100%; font-size: $labelSize%;">
-            $label
+            \\(\\displaystyle $label = \\)
         </div>
     </div>
     <div style="grid-row-start: 3; grid-row-end: 4;"></div>
@@ -470,14 +545,15 @@ ENDHTML
 
 sub TeX {
 	my $self = shift;
-	return $self->printTeX($self->{dAkey});
+	my $dA   = $self->{dAkey};
+	return $self->printTeX($self->{integrals}{$dA});
 }
 
 sub printTeX {
 	my $self     = shift;
-	my $dA       = shift;
-	my $integral = $self->{integrals}{$dA};
-	my $out      = '';
+	my $integral = shift;
+	my $label    = $self->{label} || '';
+	my $out      = $label ? "$label = " : '';
 
 	foreach (@{ $integral->{bounds} }) { $out .= '\int_{' . $_->[0]->TeX . '}^{' . $_->[1]->TeX . '} '; }
 	return "$out \\left(" . $integral->{func}->TeX . '\right)\, ' . $integral->{diff}->TeX;
@@ -485,20 +561,42 @@ sub printTeX {
 
 sub string {
 	my $self = shift;
-	return $self->printString($self->{dAkey});
+	my $dA   = $self->{dAkey};
+	return $self->printString($self->{integrals}{$dA});
 }
 
 sub printString {
 	my $self     = shift;
-	my $dA       = shift;
-	my $integral = $self->{integrals}{$dA};
+	my $integral = shift;
 	my $out      = '';
 
 	foreach (@{ $integral->{bounds} }) { $out .= 'int(' . $_->[0]->string . ', ' . $_->[1]->string . ') '; }
 	return "$out (" . $integral->{func}->string . ') ' . $integral->{diff}->string;
 }
 
-sub cmp { shift->{ma}->cmp }
+sub ANS_NAME {
+	my $self = shift;
+	my $i    = shift;
+	return $self->{answerNames}{$i} if defined($self->{answerNames}{$i});
+	$self->{answerNames}{0}   = main::NEW_ANS_NAME() unless defined($self->{answerNames}{0});
+	$self->{answerNames}{$i} = $answerPrefix . $self->{answerNames}{0} . '_' . $i unless $i == 0;
+	return $self->{answerNames}{$i};
+}
+
+sub mk_ans_rule {
+	my $self = shift;
+	my $i    = shift;
+	my $size = shift || 1;
+	my $data = $self->data($i);
+	my $name = $self->ANS_NAME($i);
+	if ($i == 0) {
+		my $label = main::generate_aria_label($answerPrefix . $name . '_0');
+		return $data->named_ans_rule($name, $size, aria_label => $label);
+	}
+	return $data->named_ans_rule_extension($name, $size, answer_group_name => $self->{answerNames}{0});
+}
+
 sub ans_rule  { shift->printIntegral }
 sub ans_array { shift->printIntegral }
+sub type { shift->{type} }
 
