@@ -178,7 +178,6 @@ sub new {
 	$self = bless {
 		context       => $context,
 		isValue       => 1,
-		type          => 'Integral',
 		num           => $num,
 		integrals     => $ints,
 		dAkey         => $dAkey,
@@ -607,7 +606,13 @@ sub mk_ans_rule {
 	return $data->named_ans_rule_extension($name, $size, answer_group_name => $self->{answerNames}{0});
 }
 
+sub type {
+	my $self = shift;
+	my $num  = $self->{num};
+	my $name = ($num < 4) ? ('Single', 'Double', 'Triple')[$num - 1] : "$num-";
+	return $name . 'Integral';
+}
+
 sub ans_rule  { shift->printIntegral }
 sub ans_array { shift->printIntegral }
-sub type      { shift->{type} }
 
