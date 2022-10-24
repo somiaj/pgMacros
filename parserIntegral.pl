@@ -346,7 +346,6 @@ sub cmp {
 		correct_ans              => $self->string,
 		correct_ans_latex_string => $self->TeX,
 		correct_value            => $self,
-		debug                    => 1,
 		@_,
 	);
 	$ans->install_pre_filter('erase');    # Remove blank filter.
@@ -365,11 +364,23 @@ sub cmp_preprocess {
 	$ans->{_filter_name} = 'Build Integral';
 
 	# Build student answer
-	my @answers;
+	my (@answers, @raw);
+	my $blank = Value::makeValue('', context => $context);
 	foreach (0 .. 2 * $num + 1) {
-		push(@answers, Value::makeValue($inputs->{ $self->ANS_NAME($_) }, context => $context));
+		my $value = $self->data($_);
+		my $input = $inputs->{ $self->ANS_NAME($_) };
+		push (@raw, $input);
+		my $s_ans = $input ? $value->cmp->evaluate($input) : '';
+
+		# Use a blank answer to still build students integral if there is an error.
+		if (!$s_ans || $s_ans->{ans_message}) {
+			$ans->{ans_message} = $s_ans->{ans_message} if ($s_ans);
+			push(@answers, $blank);
+		} else {
+			push(@answers, $s_ans->{student_value});
+		}
 	}
-	$ans->{original_student_ans} = join(' ; ', @answers);
+	$ans->{original_student_ans} = join(' ; ', @raw);
 	my $diff     = pop(@answers);
 	my $func     = pop(@answers);
 	my $bounds   = [ map { [ shift(@answers), shift(@answers) ] } 1 .. $num ];
@@ -415,7 +426,7 @@ sub cmp_int {
 	$score    = main::min(0.75, $score) unless ($intCheck);                # Max score is 75% if checkIntegral fails.
 	$errorMsg = ($errorMsg) ? $errorMsg : ($intMsg) ? $intMsg : $cmpMsg;
 
-	$ans->{ans_message} = $errorMsg if ($errorMsg && $self->{showWarnings});
+	$ans->{ans_message} = $errorMsg if (!$ans->{ans_message} && $errorMsg && $self->{showWarnings});
 	$ans->{score}       = $self->{partialCredit} ? $score : ($score == 1);
 	return $ans;
 }
