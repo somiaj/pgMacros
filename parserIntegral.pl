@@ -370,20 +370,20 @@ sub cmp_preprocess {
 		my $value = $self->data($_);
 		my $input = $inputs->{ $self->ANS_NAME($_) };
 		push (@raw, $input);
-		my $s_ans = $input ? $value->cmp->evaluate($input) : '';
+		my $s_ans = ($input ne '') ? $value->cmp->evaluate($input) : '';
 
 		# Use a blank answer to still build students integral if there is an error.
-		if (!$s_ans || $s_ans->{ans_message}) {
-			$ans->{ans_message} = $s_ans->{ans_message} if ($s_ans);
+		if ($s_ans eq '' || $s_ans->{ans_message}) {
+			$ans->{ans_message} = $s_ans->{ans_message} if ($s_ans->{ans_message});
 			push(@answers, $blank);
 		} else {
 			push(@answers, $s_ans->{student_value});
 		}
 	}
 	$ans->{original_student_ans} = join(' ; ', @raw);
-	my $diff     = pop(@answers);
-	my $func     = pop(@answers);
 	my $bounds   = [ map { [ shift(@answers), shift(@answers) ] } 1 .. $num ];
+	my $func     = shift(@answers);
+	my $diff     = shift(@answers);
 	my $integral = { bounds => $bounds, func => $func, diff => $diff };
 
 	$ans->{integral}             = $integral;
