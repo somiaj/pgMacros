@@ -208,7 +208,7 @@ sub data {
 	my $int  = $self->{integrals}{$dA};
 	my $num  = $self->{num};
 	if ($i < 2 * $num) {
-		my $n = int($i/2);
+		my $n = int($i / 2);
 		my $k = $i % 2;
 		return $int->{bounds}[$n][$k];
 	} elsif ($i == 2 * $num) {
@@ -349,9 +349,9 @@ sub cmp {
 		debug                    => 1,
 		@_,
 	);
-	$ans->install_pre_filter('erase'); # Remove blank filter.
+	$ans->install_pre_filter('erase');    # Remove blank filter.
 	$ans->install_pre_filter(sub { my $ans = shift; (shift)->cmp_preprocess($ans) }, $self);
-	$ans->install_evaluator(sub { my $ans = shift; (shift)->cmp_int($ans) }, $self);
+	$ans->install_evaluator(sub { my $ans  = shift; (shift)->cmp_int($ans) }, $self);
 	return $ans;
 }
 
@@ -366,18 +366,18 @@ sub cmp_preprocess {
 
 	# Build student answer
 	my @answers;
-	foreach (0 .. 2*$num + 1) {
+	foreach (0 .. 2 * $num + 1) {
 		push(@answers, Value::makeValue($inputs->{ $self->ANS_NAME($_) }, context => $context));
 	}
 	$ans->{original_student_ans} = join(' ; ', @answers);
-	my $diff = pop(@answers);
-	my $func = pop(@answers);
-	my $bounds = [map { [shift(@answers), shift(@answers)] } 1..$num];
+	my $diff     = pop(@answers);
+	my $func     = pop(@answers);
+	my $bounds   = [ map { [ shift(@answers), shift(@answers) ] } 1 .. $num ];
 	my $integral = { bounds => $bounds, func => $func, diff => $diff };
 
-	$ans->{integral} = $integral;
-	$ans->{student_ans} = $self->printString($integral);
-	$ans->{preview_text_string} = $ans->{student_ans};
+	$ans->{integral}             = $integral;
+	$ans->{student_ans}          = $self->printString($integral);
+	$ans->{preview_text_string}  = $ans->{student_ans};
 	$ans->{preview_latex_string} = $self->printTeX($integral);
 	return $ans;
 }
@@ -411,12 +411,12 @@ sub cmp_int {
 	my ($intCheck, $intMsg) = $self->checkIntegral($ans_int, 2);
 	my ($cmpScore, $cmpMsg) = $self->cmpIntegrals($integrals->{$s_dA}, $ans_int);
 	$score += $cmpScore;
-	$score /= 2 * ($num + 1);                                  # Trun score into a percent.
-	$score    = main::min(0.75, $score) unless ($intCheck);    # Max score is 75% if checkIntegral fails.
+	$score /= 2 * ($num + 1);                                              # Trun score into a percent.
+	$score    = main::min(0.75, $score) unless ($intCheck);                # Max score is 75% if checkIntegral fails.
 	$errorMsg = ($errorMsg) ? $errorMsg : ($intMsg) ? $intMsg : $cmpMsg;
 
 	$ans->{ans_message} = $errorMsg if ($errorMsg && $self->{showWarnings});
-	$ans->{score} = $self->{partialCredit} ? $score : ($score == 1);
+	$ans->{score}       = $self->{partialCredit} ? $score : ($score == 1);
 	return $ans;
 }
 
@@ -578,7 +578,7 @@ sub ANS_NAME {
 	my $self = shift;
 	my $i    = shift;
 	return $self->{answerNames}{$i} if defined($self->{answerNames}{$i});
-	$self->{answerNames}{0}   = main::NEW_ANS_NAME() unless defined($self->{answerNames}{0});
+	$self->{answerNames}{0}  = main::NEW_ANS_NAME() unless defined($self->{answerNames}{0});
 	$self->{answerNames}{$i} = $answerPrefix . $self->{answerNames}{0} . '_' . $i unless $i == 0;
 	return $self->{answerNames}{$i};
 }
@@ -598,5 +598,5 @@ sub mk_ans_rule {
 
 sub ans_rule  { shift->printIntegral }
 sub ans_array { shift->printIntegral }
-sub type { shift->{type} }
+sub type      { shift->{type} }
 
