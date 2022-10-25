@@ -13,11 +13,27 @@ differential are checked. Also allows for entering in double and triple integral
 in different orders, which must match the order of the differential. The resulting object
 can be used like a Value object.
 
-An integral is built from a hash reference in which the keys are the possible
+An integral is built from either a hash reference in which the keys are the possible
 differentials and each key points to a hash of the integrand and bounds.
 The bounds are a nested array of bounds going from the outside integral to the inside.
 
-    $integralHash = {dxdy => { func => 'x^2 + y^2', bounds => [[1, 2], [3,4]]}};
+    $integralHash = {dxdy => { func => 'x^2 + y^2', bounds => [[1, 2], [3, 4]]}};
+
+The integral can also be built from an array reference which lists the function,
+bounds, and differential in that order.
+
+    $integralArray = ['x^2 + y^2', [[1, 2], [3, 4]], 'dxdy']
+
+You can also use the hash or nested array to list multiple possible answers.
+
+    $integrals = {
+        dxdy => { func => '3xy^2', bounds => [[0, 5], ['4y/5', 4]] },
+        dydx => { func => '3xy^2', bounds => [[0, 4], [0, '5x/4']] }
+    };
+    $integrals = [
+        ['3xy^2', [[0, 5], ['4y/5', 4]], 'dxdy'],
+        ['3xy^2', [[0, 4], [0, '5x/4']], 'dydx'],
+    ];
 
 Before creating an integral, be sure to add all variables to the current context.
 This is not done automatically and you will get errors if using undefined variables.:
@@ -35,7 +51,7 @@ This is not done automatically and you will get errors if using undefined variab
 
 SingleIntegral Example:
 
-    $singleInt = SingleIntegral({ dx => { func => 'x^2', bounds => [[0, 3]] }});
+    $singleInt = SingleIntegral(['x^2', [[0, 3]], 'dx']);
 
 Allow constant variables in the bounds. A FTC example:
 
@@ -72,12 +88,12 @@ be entered in different coordinate systems.
         dtheta => ['Real', TeX => 'd\theta '],
     );
     $doubleInt = DoubleIntegral(
-        {
-            dxdy     => { func => 'x^2 + y^2', bounds => [[0, 2], [0, 'sqrt(4-y^2)']] },
-            dydx     => { func => 'x^2 + y^2', bounds => [[0, 2], [0, 'sqrt(4-x^2)']] },
-            drdtheta => { func => 'r^3', bounds => [[0, 'pi/2'], [0,2]] },
-            dthetadr => { func => 'r^3', bounds => [[0, 2], [0, 'pi/2']] },
-        },
+        [
+            ['x^2 + y^2', [[0, 2], [0, 'sqrt(4-y^2)']], 'dxdy'],
+            ['x^2 + y^2', [[0, 2], [0, 'sqrt(4-x^2)']], 'dydx'],
+            ['r^3', [[0, 'pi/2'], [0, 2]], 'drdtheta'],
+            ['r^3', [[0, 2], [0, 'pi/2']], 'dthetadr'],
+        ],
         dAkey => 'drdtheta', # Set initial answer key (otherwise based on random hash order)
     );
 
@@ -90,7 +106,7 @@ TripleIntegral Example (bounds can be entered in any order):
 
 =head1 OPTIONS
 
-The following list of options, option => value, can be added after the integral hash.
+The following list of options, option => value, can be added after the integral hash/array.
 
     dAkey         => key,       The integral hash key used as the initial correct answer.
                                 Displayed correct answer will change to match student's differential.
@@ -133,15 +149,15 @@ the integral into MathQuill. The string output matches what MathQuill
 would produce in an ideal case (nothing multiplied on the outside of
 of integrals, and not adding integrals together).
 
-Clean up code -- I've rewritten this multiple times, probably redudent,
-extra code floating around.
-
 =cut
 
 sub _parserIntegral_init {
-	main::PG_restricted_eval('sub SingleIntegral {parser::Integral->new(1, @_)}');
-	main::PG_restricted_eval('sub DoubleIntegral {parser::Integral->new(2, @_)}');
-	main::PG_restricted_eval('sub TripleIntegral {parser::Integral->new(3, @_)}');
+	main::PG_restricted_eval('sub SingleIntegral {parser::Integral->new("int", 1, @_)}');
+	main::PG_restricted_eval('sub DoubleIntegral {parser::Integral->new("int", 2, @_)}');
+	main::PG_restricted_eval('sub TripleIntegral {parser::Integral->new("int", 3, @_)}');
+	main::PG_restricted_eval('sub SigmaSum {parser::Integral->new("sum", 1, @_)}');
+	main::PG_restricted_eval('sub Sigma2Sum {parser::Integral->new("sum", 2, @_)}');
+	main::PG_restricted_eval('sub Sigma3Sum {parser::Integral->new("sum", 3, @_)}');
 }
 
 package parser::Integral;
@@ -150,37 +166,22 @@ our @ISA = ('Value');
 our $answerPrefix = 'InTeGrAl_';
 
 sub new {
-	my $self    = shift;
-	my $class   = ref($self) || $self;
-	my $context = Value::isContext($_[0]) ? shift : main::Context();
-	my $num     = shift;                                               # Number of integrals
-	my $ints    = shift;                                               # HASH of integrals
-
-	$ints = \%$ints if (ref($ints) eq 'ARRAY' && scalar(@$ints) % 2 == 0);    # Convert ARRAY to hash if possible
-	Value::Error('Input must be a HASH of integrals') unless (ref($ints) eq 'HASH');
-
-	# Check hash and convert everything to Formula's as needed.
-	# This prevents type errors if students enter in a Formula for a constant bound.
-	foreach my $dA (keys %$ints) {
-		$ints->{$dA}{diff} = main::Formula($dA);
-		Value::Error('Integrand func is not defined for differential %s.', $dA) unless (defined($ints->{$dA}{func}));
-		$ints->{$dA}{func} = main::Formula($ints->{$dA}{func}) unless (Value::isFormula($ints->{$dA}{func}));
-		foreach (0 .. $num - 1) {
-			my ($lb, $ub) = @{ $ints->{$dA}{bounds}[$_] };
-			Value::Error('Missing %s bounds for differential %s.', $self->boundString($_))
-				unless (defined($lb) && defined($ub));
-			$ints->{$dA}{bounds}[$_][0] = main::Formula($lb) unless (Value::isFormula($lb));
-			$ints->{$dA}{bounds}[$_][1] = main::Formula($ub) unless (Value::isFormula($ub));
-		}
-		$dAkey = $dA;    # Answer key is the last integral found
-	}
+	my $self      = shift;
+	my $class     = ref($self) || $self;
+	my $context   = Value::isContext($_[0]) ? shift : main::Context();
+	my $type      = shift;
+	my $num       = shift;
+	my $ints      = shift;
+	my %integrals = ();
+	my $dAkey     = '';
 
 	$self = bless {
 		context       => $context,
 		isValue       => 1,
+		type          => $type,
 		num           => $num,
-		integrals     => $ints,
-		dAkey         => $dAkey,
+		integrals     => {},
+		dAkey         => '',
 		showWarnings  => $main::showPartialCorrectAnswers,
 		partialCredit => $main::showPartialCorrectAnswers,
 		size          => 150,
@@ -191,148 +192,51 @@ sub new {
 		@_
 	}, $class;
 
-	# Check integrals
-	foreach (keys %$ints) { $self->checkIntegral($ints->{$_}); }
-	$self->swapAllBounds if ($self->{swapBounds} && $num > 1);
+	my %options = $self->intOpts;
+	# Build integrals depending on ints type.
+	if (ref($ints) eq 'HASH') {
+		foreach (keys %$ints) {
+			$dAkey            = $_;
+			$ints->{$_}{diff} = $_;
+			$integrals{$_}    = integralHash->new($ints->{$_}, %options);
+		}
+	} elsif (ref($ints) eq 'ARRAY') {
+		if (ref($ints->[0]) eq 'ARRAY') {
+			$dAkey = $ints->[0][2];
+			foreach (@$ints) { $integrals{ $_->[2] } = integralHash->new($_, %options); }
+		} else {
+			$dAkey = $ints->[2];
+			$integrals{$dAkey} = integralHash->new($ints, %options);
+		}
+	} else {
+		Value::Error('Input must be a HASH or ARRAY.');
+	}
+	$self->{integrals} = \%integrals;
+	$self->{dAkey}     = $dAkey;
 
 	return $self;
 }
 
-# Return the i-th (starting from 0) Value object.
-# Bounds (lower then upper), integrand, then differential.
-sub data {
-	my $self = shift;
-	my $i    = shift;
-	my $dA   = $self->{dAkey};
-	my $int  = $self->{integrals}{$dA};
-	my $num  = $self->{num};
-	if ($i < 2 * $num) {
-		my $n = int($i / 2);
-		my $k = $i % 2;
-		return $int->{bounds}[$n][$k];
-	} elsif ($i == 2 * $num) {
-		return $int->{func};
-	} elsif ($i == 2 * $num + 1) {
-		return $int->{diff};
-	}
-	return $i;
+# Options to pass to integralHashes.
+sub intOpts {
+	$self = shift;
+	map { $_ => $self->{$_} } ('constantVars', 'label', 'type');
 }
 
-# Check integral integrity.
-sub checkIntegral {
-	my $self         = shift;
-	my $int          = shift;
-	my $showWarnings = defined($_[0]) ? shift : 1;
-	my $num          = $self->{num};
-	my $context      = $self->{context};
-	my @variables    = $context->variables->variables;
-	my @constants    = @{ $self->{constantVars} };
-	my $diff         = $int->{diff}->string;
-	my @vars         = split('\*', $diff);
-	my $errorMsg     = '';
-
-	# Remove approved constants from variable list.
-	my %constHash = map { $_ => 1 } @constants;
-	@variables = grep { !$constHash{$_} } @variables;
-
-	# Test differential and extract integration variables and order.
-	$errorMsg = sprintf('Differential must be a product of %s variables', $num)
-		if (!$errorMsg && scalar(@vars) != $num);
-	foreach (0 .. $num - 1) {
-		last if ($errorMsg);
-		my $dx = $vars[$_];
-		$errorMsg = sprintf('Differential variable %s must start with "d".', $dx) if ($dx !~ /^d/);
-		$dx =~ s/^d//;
-		$errorMsg = sprintf('Variable %s used in differential is undefined in this context.', $dx)
-			unless ($errorMsg || /^$dx$/, @variables);
-		$vars[$_] = $dx;
-	}
-
-	# Test bounds to ensure they use appropriate variables.
-	my @allow_vars = @constants;
-	foreach (0 .. $num - 1) {
-		last if ($errorMsg);
-		$errorMsg = sprintf('The %s bounds can only use %s.', $self->boundString($_), $self->varMsg(@allow_vars))
-			unless ($self->testVars($int->{bounds}[$_][0], @allow_vars)
-				&& $self->testVars($int->{bounds}[$_][1], @allow_vars));
-		push(@allow_vars, $vars[ $num - 1 - $_ ]);
-	}
-
-	# Test integrand function to ensure it uses appropriate variables.
-	$errorMsg = sprintf('Integrand can only use %s.', $self->varMsg(@allow_vars))
-		unless ($errorMsg || $self->testVars($int->{func}, @allow_vars));
-
-	return (0, $errorMsg)   if ($errorMsg && $showWarnings == 2);
-	Value::Error($errorMsg) if ($errorMsg && $showWarnings);
+sub swapBounds {
+	my $self = shift;
+	return 0 unless ($self->{swapBounds});
+	my @dA    = split('\*', shift->{diff}->string);
+	my $dAnew = join('', @dA);
+	my $ints  = $self->{integrals};
+	my $int   = $ints->{ $self->{dAkey} };
+	my @dAkey = split('\*', $int->{diff});
+	return 0 unless (join('', main::lex_sort(@dA)) eq join('', main::lex_sort(@dAkey)));
+	my $num    = $self->{num} - 1;
+	my %order  = map { $dAkey[$_] => $num - $_ } 0 .. $num;
+	my @bounds = map { $int->{bounds}[ $order{$_} ] } reverse(@dA);
+	$ints->{$dAnew} = integralHash->new([ $int->{func}, \@bounds, $dAnew ], $self->intOpts);
 	return 1;
-}
-
-# Nicely format variable list message.
-sub varMsg {
-	my $self = shift;
-	my $size = scalar(@_);
-	return 'constants'                     if ($size == 0);
-	return "the variable $_[0]"            if ($size == 1);
-	return "the variables $_[0] and $_[1]" if ($size == 2);
-	return 'the variables ' . join(', ', @_) =~ s/, ([^,]*)$/, and $1/r;
-}
-
-# Test if formula only uses listed variables.
-sub testVars {
-	my $self = shift;
-	my $item = shift;
-	my @vars = @_;
-	my $used = 0;
-	foreach (@vars) { $used++ if (Value::isFormula($item) && $item->usesOneOf($_)); }
-	return 1 unless (Value::isFormula($item));
-	return (scalar(%{ $item->{variables} }) == $used);
-}
-
-# Fischer-Krause ordered permutation generator.
-# Generates the next larger permutation of a number array.
-# Returns empty array for maximum permutation.
-sub permute {
-	my $self = shift;
-	my @in   = @_;
-	my $i    = $j = $#in;
-	$i-- while $in[ $i - 1 ] > $in[$i];
-	return () unless $i;
-	$j-- until $in[$j] > $in[ $i - 1 ];
-	($in[ $i - 1 ], $in[$j]) = ($in[$j], $in[ $i - 1 ]);
-	my @out = reverse splice(@in, $i);
-	return (@in, @out);
-}
-
-sub swapAllBounds {
-	my $self      = shift;
-	my $dA        = $self->{dAkey};
-	my $ints      = $self->{integrals};
-	my $int       = $ints->{$dA};
-	my @bounds    = @{ $ints->{$dA}{bounds} };
-	my @constants = @{ $self->{constantVars} };
-	my @dAs       = split('\*', $int->{diff}->string);
-	my $num       = $self->{num} - 1;
-	my @list      = (0 .. $num);
-	my %rlist     = map { $_ => $num - $_ } @list;
-
-	# If any bounds use non-constant variables, don't swap bounds.
-	foreach (@bounds) {
-		return unless ($self->testVars($_->[0], @constants) && $self->testVars($_->[1], @constants));
-	}
-
-	my $stop = 0;
-	until ($stop) {
-		@list = $self->permute(@list);
-		unless (@list) {    # Final permutation is returned as a blank list to stop loop.
-			$stop = 1;
-			@list = reverse(0 .. $num);
-		}
-		my $dAnew = join('', @dAs[@list]);
-		next if defined($ints->{$dAnew});
-		$ints->{$dAnew}{func}   = $int->{func};
-		$ints->{$dAnew}{diff}   = main::Formula($dAnew);
-		$ints->{$dAnew}{bounds} = [ map { $bounds[ $rlist{$_} ] } reverse @list ];
-	}
 }
 
 # Build answer evaluator.
@@ -341,54 +245,65 @@ sub cmp {
 	my $ans  = new AnswerEvaluator;
 
 	$ans->ans_hash(
-		type                     => 'Integral',
+		type                     => $self->type,
 		correct_ans              => $self->string,
 		correct_ans_latex_string => $self->TeX,
 		correct_value            => $self,
 		@_,
 	);
+
 	$ans->install_pre_filter('erase');    # Remove blank filter.
 	$ans->install_pre_filter(sub { my $ans = shift; (shift)->cmp_preprocess($ans) }, $self);
 	$ans->install_evaluator(sub { my $ans  = shift; (shift)->cmp_int($ans) }, $self);
 	return $ans;
 }
 
-# Get student answers and build integral.
+# Get student answers and build student integral.
 sub cmp_preprocess {
 	my $self    = shift;
 	my $ans     = shift;
 	my $num     = $self->{num};
 	my $context = $self->{context};
 	my $inputs  = $main::inputs_ref;
+	my $blank   = Value::makeValue('', context => $context);
+	my $dAkey   = $self->{integrals}{ $self->{dAkey} }->{diff};
+	my @errors  = ();
 	$ans->{_filter_name} = 'Build Integral';
 
-	# Build student answer
+	# Get ARRAY of responses.
+	# Unsure how to deal with badly formatted student input data when trying to make
+	# a Value object, so using the diff formula evaluate function for this task.
 	my (@answers, @raw);
-	my $blank = Value::makeValue('', context => $context);
 	foreach (0 .. 2 * $num + 1) {
-		my $value = $self->data($_);
 		my $input = $inputs->{ $self->ANS_NAME($_) };
-		push (@raw, $input);
-		my $s_ans = ($input ne '') ? $value->cmp->evaluate($input) : '';
+		push(@raw, defined($input) ? $input : '');
+		my $tmpAns = (defined($input) && $input ne '') ? $dAkey->cmp->evaluate($input) : '';
 
-		# Use a blank answer to still build students integral if there is an error.
-		if ($s_ans eq '' || $s_ans->{ans_message}) {
-			$ans->{ans_message} = $s_ans->{ans_message} if ($s_ans->{ans_message});
-			push(@answers, $blank);
+		# Use a blank answer to still build student's integral if there is an error.
+		if (ref($tmpAns) eq 'AnswerHash') {
+			if ($tmpAns->{ans_message}) {
+				push(@errors,  $tmpAns->{ans_message});
+				push(@answers, $blank->copy);
+			} else {
+				push(@answers, $tmpAns->{student_value});
+			}
 		} else {
-			push(@answers, $s_ans->{student_value});
+			push(@errors,  'Answer box ' . ($_ + 1) . ' is blank.');
+			push(@answers, $blank->copy);
 		}
 	}
-	$ans->{original_student_ans} = join(' ; ', @raw);
 	my $bounds   = [ map { [ shift(@answers), shift(@answers) ] } 1 .. $num ];
 	my $func     = shift(@answers);
 	my $diff     = shift(@answers);
-	my $integral = { bounds => $bounds, func => $func, diff => $diff };
+	my $integral = integralHash->new([ $func, $bounds, $diff ], $self->intOpts, strict => 0);
+	push(@errors, @{ $integral->{errors} });
 
-	$ans->{integral}             = $integral;
-	$ans->{student_ans}          = $self->printString($integral);
+	$ans->{errors}               = \@errors;
+	$ans->{student_value}        = $integral;
+	$ans->{original_student_ans} = join(' ; ', @raw);
+	$ans->{student_ans}          = $integral->string;
 	$ans->{preview_text_string}  = $ans->{student_ans};
-	$ans->{preview_latex_string} = $self->printTeX($integral);
+	$ans->{preview_latex_string} = $integral->TeX;
 	return $ans;
 }
 
@@ -396,95 +311,71 @@ sub cmp_preprocess {
 sub cmp_int {
 	my $self      = shift;
 	my $ans       = shift;
+	my $s_int     = $ans->{student_value};
+	my $errors    = $ans->{errors};
 	my $num       = $self->{num};
 	my $integrals = $self->{integrals};
+	my $score     = 0;
 	$ans->{_filter_name} = 'Check Integral';
 
 	# Stop if previewing answer.
 	return $ans if $ansHash->{isPreview};
 
-	my $ans_int  = $ans->{integral};
-	my $score    = 0;
-	my $errorMsg = '';
-
 	# Find integral based off of student's differential
-	my $s_dA = $ans_int->{diff}->string =~ s/\*//gr;
-	if (defined($integrals->{$s_dA})) {
+	my $s_dA = $s_int->{diff}->string =~ s/\*//gr;
+	if ($s_int->{diffOk} && (defined($integrals->{$s_dA}) || $self->swapBounds($s_int))) {
 		$score++;
 	} else {
-		$errorMsg = "The differential $s_dA is invalid for this integral.";
-		$s_dA     = $self->{dAkey};
+		push(@$errors, "The differential $s_dA is invalid for this integral.");
+		$s_dA = $self->{dAkey};
 	}
-	$ans->{correct_ans_latex_string} = $self->printTeX($integrals->{$s_dA});
-
-	# Compare answer and compute score.
-	my ($intCheck, $intMsg) = $self->checkIntegral($ans_int, 2);
-	my ($cmpScore, $cmpMsg) = $self->cmpIntegrals($integrals->{$s_dA}, $ans_int);
-	$score += $cmpScore;
-	$score /= 2 * ($num + 1);                                              # Trun score into a percent.
-	$score    = main::min(0.75, $score) unless ($intCheck);                # Max score is 75% if checkIntegral fails.
-	$errorMsg = ($errorMsg) ? $errorMsg : ($intMsg) ? $intMsg : $cmpMsg;
-
-	$ans->{ans_message} = $errorMsg if (!$ans->{ans_message} && $errorMsg && $self->{showWarnings});
-	$ans->{score}       = $self->{partialCredit} ? $score : ($score == 1);
-	return $ans;
-}
-
-# Checks if two integrals are the same. Issues warnings if configured.
-# First integral should be the correct integral and second the answer.
-sub cmpIntegrals {
-	my $self     = shift;
-	my $int1     = shift;
-	my $int2     = shift;
-	my $num      = $self->{num};
-	my $score    = 0;
-	my $errorMsg = '';
+	my $c_int = $integrals->{$s_dA};
+	$ans->{correct_ans_latex_string} = $c_int->TeX;
 
 	# Check bounds. Work from inside out.
 	foreach (reverse(0 .. $num - 1)) {
-		my ($lb1, $ub1) = @{ $int1->{bounds}[$_] };
-		my ($lb2, $ub2) = @{ $int2->{bounds}[$_] };
+		my ($lb1, $ub1) = @{ $c_int->{bounds}[$_] };
+		my ($lb2, $ub2) = @{ $s_int->{bounds}[$_] };
 		if ($lb1 == $lb2) {
 			$score++;
 		} else {
-			$errorMsg = sprintf('The %s bounds are not correct.', $self->boundString($_)) unless ($errorMsg);
+			push(@$errors, sprintf('The %s bounds are not correct.', $c_int->boundString($_)));
 		}
 		if ($ub1 == $ub2) {
 			$score++;
 		} else {
-			$errorMsg = sprintf('The %s bounds are not correct.', $self->boundString($_)) unless ($errorMsg);
+			push(@$errors, sprintf('The %s bounds are not correct.', $c_int->boundString($_)));
 		}
 	}
 
 	# Check Integrand.
-	if ($int1->{func} == $int2->{func}) {
+	if ($c_int->{func} == $s_int->{func}) {
 		$score++;
 	} else {
-		$errorMsg = 'The integrand is not correct.' unless ($errorMsg);
+		push(@errors, 'The integrand is not correct.');
 	}
 
-	return ($score, $errorMsg);
-}
+	# Compute score.
+	$score /= 2 * ($num + 1);                                          # Trun score into a percent.
+	$score = main::min(0.75, $score) if (@$errors);                    # Max score is 75% if any errors fails.
+	$ans->{score} = $self->{partialCredit} ? $score : ($score == 1);
 
-sub boundString {
-	my $self = shift;
-	my $this = shift;
-	my $num  = $self->{num};
-	return ''                                  if $num == 1;
-	return ('outer', 'inner')[$this]           if $num == 2;
-	return ('outer', 'middle', 'inner')[$this] if $num == 3;
-	return Value->NameForNumber($this);
+	$ans->{ans_message} = shift(@$errors);                             # Only show the first error found.
+	return $ans;
 }
 
 sub printIntegral {
 	my $self  = shift;
 	my $num   = $self->{num} - 1;
 	my $size  = $self->{size};
+	my $type  = $self->{type};
+	my $upos  = ($type eq 'int') ? ' style="position: relative; left: 15px;"' : '';
+	my $lpos  = ($type eq 'int') ? ' style="position: relative; right: 15px;"' : '';
 	my $label = $self->{label} || '';
 	my $out   = '';
 	my $i     = 0;
 
-	# Create answer rules from MultiAnswer object.
+	# Create answer rules for bounds, integrand, and differential.
 	my (@lb, @ub);
 	foreach (0 .. $num) {
 		$lb[$_] = $self->mk_ans_rule($i++);
@@ -492,7 +383,7 @@ sub printIntegral {
 	}
 	my ($func, $diff) = ($self->mk_ans_rule($i++), $self->mk_ans_rule($i++));
 
-	# Deal with TeX and non HTML display modes.
+	# Deal with TeX and non HTML display modes first.
 	if ($main::displayMode eq 'TeX') {
 		$out = "$label \\(\\displaystyle";
 		foreach (0 .. $num) {
@@ -522,17 +413,17 @@ ENDHTML
 		$out .= <<ENDHTML;
     <div style="grid-row-start: 1; grid-row-end: 2;">
         <div style="display: flex; flex-wrap: nowrap; flex-direction: row; align-items: flex-end; justify-content: center; height: 100%; padding: 5px;">
-          <div style="position: relative; left: 15px;">$ub[$_]</div>
+          <div$upos>$ub[$_]</div>
         </div>
     </div>
     <div style="grid-row-start: 2; grid-row-end: 3;">
         <div style="display: flex; flex-wrap: nowrap; flex-direction: row; align-items: center; justify-content: center; height: 100%; font-size: $size%;">
-            \\(\\displaystyle\\int\\)
+            \\(\\displaystyle\\$type\\)
         </div>
     </div>
     <div style="grid-row-start: 3; grid-row-end: 4;">
         <div style="display: flex; flex-wrap: nowrap; flex-direction: row; align-items: flex-start; justify-content: center; height: 100%; padding: 5px;">
-          <div style="position: relative; right: 15px;">$lb[$_]</div>
+          <div$lpos>$lb[$_]</div>
         </div>
     </div>
 ENDHTML
@@ -562,11 +453,7 @@ sub TeX {
 sub printTeX {
 	my $self     = shift;
 	my $integral = shift;
-	my $label    = $self->{label} || '';
-	my $out      = $label ? "$label = " : '';
-
-	foreach (@{ $integral->{bounds} }) { $out .= '\int_{' . $_->[0]->TeX . '}^{' . $_->[1]->TeX . '} '; }
-	return "$out \\left(" . $integral->{func}->TeX . '\right)\, ' . $integral->{diff}->TeX;
+	return $integral->TeX;
 }
 
 sub string {
@@ -578,10 +465,7 @@ sub string {
 sub printString {
 	my $self     = shift;
 	my $integral = shift;
-	my $out      = '';
-
-	foreach (@{ $integral->{bounds} }) { $out .= 'int(' . $_->[0]->string . ', ' . $_->[1]->string . ') '; }
-	return "$out (" . $integral->{func}->string . ') ' . $integral->{diff}->string;
+	return $integral->string;
 }
 
 sub ANS_NAME {
@@ -597,22 +481,198 @@ sub mk_ans_rule {
 	my $self = shift;
 	my $i    = shift;
 	my $size = shift || 1;
-	my $data = $self->data($i);
 	my $name = $self->ANS_NAME($i);
 	if ($i == 0) {
 		my $label = main::generate_aria_label($answerPrefix . $name . '_0');
-		return $data->named_ans_rule($name, $size, aria_label => $label);
+		return main::NAMED_ANS_RULE($name, $size, aria_label => $label);
 	}
-	return $data->named_ans_rule_extension($name, $size, answer_group_name => $self->{answerNames}{0});
+	return main::NAMED_ANS_RULE_EXTENSION($name, $size, answer_group_name => $self->{answerNames}{0});
 }
 
 sub type {
 	my $self = shift;
 	my $num  = $self->{num};
-	my $name = ($num < 4) ? ('Single', 'Double', 'Triple')[$num - 1] : "$num-";
+	my $name = ($num < 4) ? ('Single', 'Double', 'Triple')[ $num - 1 ] : "$num-";
 	return $name . 'Integral';
 }
 
 sub ans_rule  { shift->printIntegral }
 sub ans_array { shift->printIntegral }
+
+=head1 NAME
+
+integralHash - A hash that represents an integral. This just separates the
+integral object into its own thing independent of the full parser which
+deals with multiple possible integral objects.
+
+=head1 DESCRIPTION
+
+This is a hash with a few methods to both check and create an integral:
+This just separates the hash from the parser::Integral object, which
+deals with multiple of these hashes for each key and the students answer.
+
+    bounds =>     An array of [lower, upper] bounds for each integral.
+
+    func   =>     The integrand function.
+
+    diff   =>     The differential.
+
+All objects in the hash are MathObjects.
+
+=cut
+
+package integralHash;
+
+sub new {
+	my $self    = shift;
+	my $class   = ref($self) || $self;
+	my $context = Value::isContext($_[0]) ? shift : main::Context();
+	my $int     = shift;
+
+	$self = bless {
+		context      => $context,
+		isValue      => 1,
+		type         => 'int',
+		constantVars => [],
+		label        => '',
+		bounds       => [],
+		diff         => '',
+		func         => '',
+		errors       => [],
+		strict       => 1,
+		@_,
+	}, $class;
+
+	# Convert ARRAY to HASH if even number of elements.
+	$int = {%$int} if (ref($int) eq 'ARRAY' && scalar(@$int) % 2 == 0);
+	# Build integral from input. [func, bounds, diff]
+	if (ref($int) eq 'ARRAY') {
+		$self->{func}   = shift(@$int);
+		$self->{bounds} = shift(@$int);
+		$self->{diff}   = shift(@$int);
+	} elsif (ref($int) eq 'HASH') {
+		$self->{bounds} = $int->{bounds};
+		$self->{func}   = $int->{func};
+		$self->{diff}   = $int->{diff};
+	} else {
+		Value::Error('Integral must be defined using a HASH or ARRAY.');
+	}
+	$self->mkValue;
+	return $self if (@{ $self->{errors} });
+	$self->checkIntegral;
+	return $self;
+}
+
+# Convert integral parts to Value objects.
+sub mkValue {
+	my $self   = shift;
+	my $num    = $self->num;
+	my $errors = $self->{errors};
+
+	push(@$errors, 'Missing differential.<br>')     unless (defined($self->{diff}));
+	$self->{diff} = Value::makeValue($self->{diff}) unless (Value::isValue($self->{diff}));
+	push(@$errors, 'Missing integrand.<br>')        unless (defined($self->{func}));
+	$self->{func} = Value::makeValue($self->{func}) unless (Value::isValue($self->{func}));
+	foreach (0 .. $num - 1) {
+		my ($lb, $ub) = @{ $self->{bounds}[$_] };
+		push(@$errors, sprintf('Missing %s bounds.<br>', $self->boundString($_))) unless (defined($lb) && defined($ub));
+		$self->{bounds}[$_][0] = Value::makeValue($lb) unless (Value::isValue($lb));
+		$self->{bounds}[$_][1] = Value::makeValue($ub) unless (Value::isValue($ub));
+	}
+	Value::Error(join('<br>', @$errors)) if ($self->{strict} && @$errors);
+}
+
+# Check differential, bounds, and integrand use appropriate variables.
+sub checkIntegral {
+	my $self      = shift;
+	my $num       = $self->num;
+	my $errors    = $self->{errors};
+	my $context   = $self->{context};
+	my @variables = $context->variables->variables;
+	my @constants = @{ $self->{constantVars} };
+	my $diff      = $self->{diff}->string;
+	my @vars      = split('\*', $diff);
+
+	# Remove approved constants from variable list.
+	my %constHash = map { $_ => 1 } @constants;
+	@variables = grep { !$constHash{$_} } @variables;
+
+	# Test differential and extract integration variables and order.
+	push(@$errors, sprintf('Differential must be a product of %s variables', $num)) if (scalar(@vars) != $num);
+	foreach (0 .. $num - 1) {
+		last if (@$errors);
+		my $dx = $vars[$_];
+		push(@$errors, sprintf('Differential variable %s must start with "d".', $dx)) unless ($dx =~ /^d/);
+		$dx =~ s/^d//;
+		push(@$errors, sprintf('Variable %s used in differential is undefined in this context.', $dx))
+			unless (grep(/^$dx$/, @variables));
+		$vars[$_] = $dx;
+	}
+	$self->{diffOk} = 1 unless (@$errors);
+
+	# Test bounds to ensure they use appropriate variables.
+	my @allow_vars = @constants;
+	foreach (0 .. $num - 1) {
+		last if (@$errors);
+		push(@$errors, sprintf('The %s bounds can only use %s.', $self->boundString($_), $self->varMsg(@allow_vars)))
+			unless ($self->testVars($self->{bounds}[$_][0], @allow_vars)
+				&& $self->testVars($self->{bounds}[$_][1], @allow_vars));
+		push(@allow_vars, $vars[ $num - 1 - $_ ]);
+	}
+
+	# Test integrand function to ensure it uses appropriate variables.
+	push(@$errors, sprintf('Integrand can only use %s.', $self->varMsg(@allow_vars)))
+		unless ($self->testVars($self->{func}, @allow_vars));
+
+	Value::Error(join('<br>', @$errors)) if ($self->{strict} && @$errors);
+}
+
+# Nicely format variable list message.
+sub varMsg {
+	my $self = shift;
+	my $size = scalar(@_);
+	return 'constants'                     if ($size == 0);
+	return "the variable $_[0]"            if ($size == 1);
+	return "the variables $_[0] and $_[1]" if ($size == 2);
+	return 'the variables ' . join(', ', @_) =~ s/, ([^,]*)$/, and $1/r;
+}
+
+# Test if formula only uses listed variables.
+sub testVars {
+	my $self = shift;
+	my $item = shift;
+	return 1 unless (Value::isFormula($item));
+	my $used = 0;
+	foreach (@_) { $used++ if ($item->usesOneOf($_)); }
+	return (scalar(%{ $item->{variables} }) == $used);
+}
+
+# Nicely format which integral.
+sub boundString {
+	my $self = shift;
+	my $this = shift;
+	my $num  = $self->num;
+	return ''                                  if $num == 1;
+	return ('outer', 'inner')[$this]           if $num == 2;
+	return ('outer', 'middle', 'inner')[$this] if $num == 3;
+	return Value->NameForNumber($this + 1);
+}
+
+sub TeX {
+	my $self = shift;
+	my $out  = ($self->{label}) ? $self->{label} . ' = ' : '';
+
+	foreach (@{ $self->{bounds} }) { $out .= '\int_{' . $_->[0]->TeX . '}^{' . $_->[1]->TeX . '} '; }
+	return "$out \\left(" . $self->{func}->TeX . '\right)\, ' . $self->{diff}->TeX;
+}
+
+sub string {
+	my $self = shift;
+	my $out  = '';
+
+	foreach (@{ $self->{bounds} }) { $out .= 'int(' . $_->[0]->string . ', ' . $_->[1]->string . ') '; }
+	return "$out (" . $self->{func}->string . ') ' . $self->{diff}->string;
+}
+
+sub num { scalar(@{ shift->{bounds} }) }
 
