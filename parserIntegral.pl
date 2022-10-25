@@ -360,7 +360,7 @@ sub cmp_int {
 	$score = main::min(0.75, $score) if (@$errors);                    # Max score is 75% if any errors fails.
 	$ans->{score} = $self->{partialCredit} ? $score : ($score == 1);
 
-	$ans->{ans_message} = shift(@$errors);                             # Only show the first error found.
+	$ans->{ans_message} = shift(@$errors) if $self->{showWarnings};                             # Only show the first error found.
 	return $ans;
 }
 
