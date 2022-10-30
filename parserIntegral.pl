@@ -355,7 +355,7 @@ sub cmp_int {
 	if ($c_int->{func} == $s_int->{func}) {
 		$score++;
 	} else {
-		push(@errors, 'The integrand is not correct.');
+		push(@$errors, 'The integrand is not correct.');
 	}
 
 	# Compute score.
