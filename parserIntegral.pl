@@ -175,6 +175,7 @@ sub new {
 	my %integrals = ();
 	my $dAkey     = '';
 
+	Value->Error("Unknown type $type") unless ($type eq 'int' || $type eq 'sum');
 	$self = bless {
 		context       => $context,
 		isValue       => 1,
@@ -209,7 +210,7 @@ sub new {
 			$integrals{$dAkey} = integralHash->new($ints, %options);
 		}
 	} else {
-		Value::Error('Input must be a HASH or ARRAY.');
+		Value::Error('Input must be a HASH or an ARRAY.');
 	}
 	$self->{integrals} = \%integrals;
 	$self->{dAkey}     = $dAkey;
@@ -223,6 +224,8 @@ sub intOpts {
 	map { $_ => $self->{$_} } ('constantVars', 'label', 'type');
 }
 
+# Note this doesn't test if bounds can be swapped.
+# Leave it up to problem author to use this appropriately.
 sub swapBounds {
 	my $self = shift;
 	return 0 unless ($self->{swapBounds});
@@ -356,11 +359,13 @@ sub cmp_int {
 	}
 
 	# Compute score.
-	$score /= 2 * ($num + 1);                                          # Trun score into a percent.
-	$score = main::min(0.75, $score) if (@$errors);                    # Max score is 75% if any errors fails.
+	# Max score is 75% if any errors fails.
+	$score /= 2 * ($num + 1);
+	$score = main::min(0.75, $score) if (@$errors);
 	$ans->{score} = $self->{partialCredit} ? $score : ($score == 1);
 
-	$ans->{ans_message} = shift(@$errors) if $self->{showWarnings};                             # Only show the first error found.
+	# Only show the first error found.
+	$ans->{ans_message} = shift(@$errors) if $self->{showWarnings};
 	return $ans;
 }
 
@@ -493,7 +498,7 @@ sub type {
 	my $self = shift;
 	my $num  = $self->{num};
 	my $name = ($num < 4) ? ('Single', 'Double', 'Triple')[ $num - 1 ] : "$num-";
-	return $name . 'Integral';
+	return ($self->{type} eq 'int') ? $name . 'Integral' : $name . 'SigmaSum';
 }
 
 sub ans_rule  { shift->printIntegral }
@@ -547,9 +552,9 @@ sub new {
 	$int = {%$int} if (ref($int) eq 'ARRAY' && scalar(@$int) % 2 == 0);
 	# Build integral from input. [func, bounds, diff]
 	if (ref($int) eq 'ARRAY') {
-		$self->{func}   = shift(@$int);
-		$self->{bounds} = shift(@$int);
-		$self->{diff}   = shift(@$int);
+		$self->{func}   = $int->[0];
+		$self->{bounds} = $int->[1];
+		$self->{diff}   = $int->[2];
 	} elsif (ref($int) eq 'HASH') {
 		$self->{bounds} = $int->{bounds};
 		$self->{func}   = $int->{func};
