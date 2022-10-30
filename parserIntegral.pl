@@ -133,7 +133,7 @@ The following list of options, option => value, can be added after the integral 
                                 Default is 150.
 
     label         => TeX,       An optional TeX label that is put before the output of
-                                the integral TeX and ans_rule output.
+                                the integral in the ans_rule output.
                                 Default is '' (no label).
 
     labelSize     => percent,   The percent size of the label.
@@ -665,7 +665,7 @@ sub boundString {
 
 sub TeX {
 	my $self = shift;
-	my $out  = ($self->{label}) ? $self->{label} . ' = ' : '';
+	my $out  = '';
 
 	foreach (@{ $self->{bounds} }) { $out .= '\int_{' . $_->[0]->TeX . '}^{' . $_->[1]->TeX . '} '; }
 	return "$out \\left(" . $self->{func}->TeX . '\right)\, ' . $self->{diff}->TeX;
