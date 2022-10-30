@@ -127,7 +127,7 @@ sub buildArray {
 	my $xPts = '';
 	my $yPts = '';
 	my $zPts = '';
-	my $u, $v;
+	my ($u, $v);
 
 	for ($u = $self->{uMin}; $u <= $self->{uMax}; $u += $self->{uStep}) {
 		my @xTmp = ();
