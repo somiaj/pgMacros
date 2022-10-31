@@ -122,6 +122,7 @@ The following list of options, option => value, can be added after the integral 
 
     swapBounds    => {0, 1},    Generate all permutations of the integral bounds and
                                 differential if the bounds only contain constants.
+                                For single inegrals allow reversing the bounds.
                                 Default is 0.
 
     constantVars  => [array],   An array of variables which can be treated as constants,
@@ -227,15 +228,33 @@ sub intOpts {
 # Note this doesn't test if bounds can be swapped.
 # Leave it up to problem author to use this appropriately.
 sub swapBounds {
-	my $self = shift;
-	return 0 unless ($self->{swapBounds});
-	my @dA    = split('\*', shift->{diff}->string);
-	my $dAnew = join('', @dA);
+	my $self  = shift;
+	my $s_int = shift;
 	my $ints  = $self->{integrals};
+	my $num   = $self->{num} - 1;
+	return 0 unless ($self->{swapBounds});
+
+	# For single integrals allow reversing of bounds.
+	if ($num == 0) {
+		if (defined($ints->{$s_int->{diff}->string})) {
+			my $int     = $ints->{$self->{dAkey}};
+			my @bounds  = @{$int->{bounds}};
+			my @sbounds = @{$s_int->{bounds}};
+			if ($bounds[0][0] == $sbounds[0][1] && $bounds[0][1] == $sbounds[0][0]) {
+				$int->{bounds} = $s_int->{bounds};
+				$int->{func} = main::Compute('-(' . $int->{func}->string . ')')->reduce('-(-x)' => 1);
+			}
+			return 1;
+		}
+		return 0;
+	}
+
+	# Swap integral order for multiple integrals.
+	my @dA    = split('\*', $s_int->{diff}->string);
+	my $dAnew = join('', @dA);
 	my $int   = $ints->{ $self->{dAkey} };
 	my @dAkey = split('\*', $int->{diff});
 	return 0 unless (join('', main::lex_sort(@dA)) eq join('', main::lex_sort(@dAkey)));
-	my $num    = $self->{num} - 1;
 	my %order  = map { $dAkey[$_] => $num - $_ } 0 .. $num;
 	my @bounds = map { $int->{bounds}[ $order{$_} ] } reverse(@dA);
 	$ints->{$dAnew} = integralHash->new([ $int->{func}, \@bounds, $dAnew ], $self->intOpts);
@@ -327,6 +346,7 @@ sub cmp_int {
 	# Find integral based off of student's differential
 	my $s_dA = $s_int->{diff}->string =~ s/\*//gr;
 	if ($s_int->{diffOk} && (defined($integrals->{$s_dA}) || $self->swapBounds($s_int))) {
+		$self->swapBounds($s_int) if ($num == 1); # Force possible bound swap of single integrals.
 		$score++;
 	} else {
 		push(@$errors, "The differential $s_dA is invalid for this integral.");
