@@ -89,14 +89,109 @@ our $plotlyCount = 0;
 package plotly3D;
 
 sub new {
-	my $self  = shift;
-	my $class = ref($self) || $self;
+	my $self    = shift;
+	my $class   = ref($self) || $self;
 
 	$plotlyCount++;
 	$self = bless {
 		id         => $plotlyCount,
+		plots      => [],
 		width      => 500,
 		height     => 500,
+		title      => '',
+		bgcolor    => '#f5f5f5',
+		style      => 'border: solid 2px; display: inline-block; margin: 5px; text-align: center;',
+		image      => '',
+		tex_size   => 500,
+		tex_border => 1,
+		@_,
+	}, $class;
+
+	return $self;
+}
+
+sub addSurface { push(@{shift->{plots}}, plotly3D::Surface->new(@_)); }
+
+sub TeX {
+	my $self  = shift;
+	my $size  = $self->{tex_size}*0.001;
+	my $out   = ($self->{tex_border}) ? '\fbox{' : '\mbox{';
+	$out      .= "\\begin{minipage}{$size\\linewidth}\\centering\n";
+	$out      .= ($self->{title}) ? "{\\bf $self->{title}} \\\\\n" : '';
+	if ($self->{image}) {
+		$out .= &main::image($self->{image}, tex_size => 950);
+	} else {
+		$out .= '3D image not avaialble. You must view it online.';
+	}
+	$out .= "\n\\end{minipage}}\n";
+
+	return $out;
+}
+
+sub HTML {
+	my $self  = shift;
+	my $id    = $self->{id};
+	my $width = $self->{width} + 5;
+	my $title = ($self->{title}) ? "<strong>$self->{title}</strong>" : '';
+	my $plots = '';
+	my @data  = ();
+	my $count = 0;
+
+	foreach (@{$self->{plots}}) {
+		$count++;
+		$plots .= $_->HTML($id, $count);
+		push(@data, "plotlyData${id}_$count");
+	}
+	my $dataout = '[' . join(', ', @data) . ']';
+
+	return <<END_OUTPUT;
+<div style="width: ${width}px; $self->{style}">
+$title
+<div id="plotlyDiv$id" style="width: $self->{width}px; height: $self->{height}px;"></div>
+</div>
+<script>
+$plots
+var plotlyLayout$id = {
+	autosize: true,
+	showlegend: false,
+	paper_bgcolor: "$self->{bgcolor}",
+	margin: {
+		l: 5,
+		r: 5,
+		b: 5,
+		t: 5,
+	}
+};
+Plotly.newPlot('plotlyDiv$id', $dataout, plotlyLayout$id);
+</script>
+END_OUTPUT
+
+	return $out;
+}
+
+sub Print {
+	my $self = shift;
+	my $out  = '';
+
+	$self->buildArray if ($self->{autoGen});
+	if ($main::displayMode =~ /HTML/) {
+		$out = $self->HTML;
+	} elsif ($main::displayMode eq 'TeX') {
+		$out = $self->TeX;
+	} else {
+		$out = "Unsupported display mode.";
+	}
+	return $out;
+}
+
+# plotly3D surface plots
+package plotly3D::Surface;
+
+sub new {
+	my $self    = shift;
+	my $class   = ref($self) || $self;
+
+	$self = bless {
 		uMin       => -5,
 		uMax       => 5,
 		uStep      => 0.1,
@@ -110,14 +205,10 @@ sub new {
 		xPoints    => '',
 		yPoints    => '',
 		zPoints    => '',
-		title      => '',
-		bgcolor    => '#f5f5f5',
-		style      => 'border: solid 2px; display: inline-block; margin: 5px; text-align: center;',
-		image      => '',
-		tex_size   => 500,
-		tex_border => 1,
+		colorscale => 'RdBu',
 		@_,
 	}, $class;
+	$self->buildArray if $self->{autoGen};
 
 	return $self;
 }
@@ -150,70 +241,19 @@ sub buildArray {
 	$self->{zPoints} = "[$zPts]";
 }
 
-sub TeX {
-	my $self  = shift;
-	my $size  = $self->{tex_size}*0.001;
-	my $out   = ($self->{tex_border}) ? '\fbox{' : '\mbox{';
-	$out      .= "\\begin{minipage}{$size\\linewidth}\\centering\n";
-	$out      .= ($self->{title}) ? "{\\bf $self->{title}} \\\\\n" : '';
-	if ($self->{image}) {
-		$out .= &main::image($self->{image}, tex_size => 950);
-	} else {
-		$out .= '3D image not avaialble. You must view it online.';
-	}
-	$out .= "\n\\end{minipage}}\n";
-
-	return $out;
-}
-
 sub HTML {
 	my $self  = shift;
-	my $id    = $self->{id};
-	my $width = $self->{width} + 5;
-	my $title = ($self->{title}) ? "<strong>$self->{title}</strong>" : '';
-	my $out   = <<END_OUTPUT;
-<div style="width: ${width}px; $self->{style}">
-$title
-<div id="plotlyDiv$id" style="width: $self->{width}px; height: $self->{height}px;"></div>
-</div>
-<script>
-var plotlyData$id = [{
+	my $id    = shift || 1;
+	my $count = shift || 1;
+	return <<END_OUTPUT;
+var plotlyData${id}_$count = {
 	x: $self->{xPoints},
 	y: $self->{yPoints},
 	z: $self->{zPoints},
 	type: 'surface',
+	colorscale: '$self->{colorscale}',
 	showscale: false,
-}];
-var plotlyLayout$id = {
-	autosize: true,
-	showlegend: false,
-	paper_bgcolor: "$self->{bgcolor}",
-	margin: {
-		l: 5,
-		r: 5,
-		b: 5,
-		t: 5,
-	}
 };
-Plotly.newPlot('plotlyDiv$id', plotlyData$id, plotlyLayout$id);
-</script>
 END_OUTPUT
-
-	return $out;
-}
-
-sub Print {
-	my $self = shift;
-	my $out  = '';
-
-	$self->buildArray if ($self->{autoGen});
-	if ($main::displayMode =~ /HTML/) {
-		$out = $self->HTML;
-	} elsif ($main::displayMode eq 'TeX') {
-		$out = $self->TeX;
-	} else {
-		$out = "Unsupported display mode.";
-	}
-	return $out;
 }
 
