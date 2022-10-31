@@ -198,16 +198,18 @@ sub new {
 	# Build integrals depending on ints type.
 	if (ref($ints) eq 'HASH') {
 		foreach (keys %$ints) {
-			$dAkey            = $_;
-			$ints->{$_}{diff} = $_;
-			$integrals{$_}    = integralHash->new($ints->{$_}, %options);
+			$dAkey                = $_ =~ s/ //gr;
+			$ints->{$dAkey}{diff} = $_;
+			$integrals{$dAkey}    = integralHash->new($ints->{$dAkey}, %options);
 		}
 	} elsif (ref($ints) eq 'ARRAY') {
 		if (ref($ints->[0]) eq 'ARRAY') {
-			$dAkey = $ints->[0][2];
-			foreach (@$ints) { $integrals{ $_->[2] } = integralHash->new($_, %options); }
+			$dAkey = $ints->[0][2] =~ s/ //gr;
+			foreach (@$ints) {
+				my $dA = $_->[2] =~ s/ //gr;
+				$integrals{$dA} = integralHash->new($_, %options); }
 		} else {
-			$dAkey = $ints->[2];
+			$dAkey = $ints->[2] =~ s/ //gr;
 			$integrals{$dAkey} = integralHash->new($ints, %options);
 		}
 	} else {
