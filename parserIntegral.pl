@@ -140,6 +140,11 @@ The following list of options, option => value, can be added after the integral 
     labelSize     => percent,   The percent size of the label.
                                 Default is 100.
 
+    strict        => {0, 1},    Should the integral parser error out if bounds
+                                include invalid variables.
+                                Default: 1
+
+
 =name1 TODO - WISHLIST
 
 showWarnings and partialCredit should really be be cmp options and
@@ -191,6 +196,7 @@ sub new {
 		constantVars  => [],
 		label         => '',
 		labelSize     => 100,
+		strict        => 1,
 		@_
 	}, $class;
 
@@ -224,7 +230,7 @@ sub new {
 # Options to pass to integralHashes.
 sub intOpts {
 	$self = shift;
-	map { $_ => $self->{$_} } ('constantVars', 'label', 'type');
+	map { $_ => $self->{$_} } ('constantVars', 'label', 'type', 'strict');
 }
 
 # Note this doesn't test if bounds can be swapped.
