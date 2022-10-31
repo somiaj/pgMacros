@@ -1,3 +1,4 @@
+
 =head1 plotly3D.pl
 
 Adds Graph3D, an object for creating 3D parametric surface plots
@@ -6,8 +7,10 @@ using the plotly JavaScript library. https://plotly.com/javascript/
 =head2 Examples
 
 Plot the cone z = sqrt(x^2 + y^2) using rectangular coordinates.
+First create the Graph3D object, then add the surface.
 
-  $graph = Graph3D(zFunc => sub { sqrt($_[0]**2 + $_[1]**2) });
+  $graph = Graph3D();
+  $graph->addSurface(zFunc => sub { sqrt($_[0]**2 + $_[1]**2) });
 
 Print the HTML and JavaScript to a problem in PGML.
 
@@ -15,7 +18,7 @@ Print the HTML and JavaScript to a problem in PGML.
 
 Change the default domain of the plot.
 
-  $graph = Graph3D(
+  $graph->addSufrace(
     zFunc => sub { sqrt($_[0]**2 + $_[1]**2) },
     uMin  => -10,
     uMax  => 10,
@@ -27,7 +30,7 @@ Change the default domain of the plot.
 
 Plot the cone z = sqrt(x^2 + y^2) using polar coordinates.
 
-  $graph = Graph3D(
+  $graph->addSurface(
     xFunc => sub { $_[0]*cos($_[1]) },
     yFunc => sub { $_[0]*sin($_[1]) },
     zFunc => sub { $_[0] },
@@ -37,23 +40,11 @@ Plot the cone z = sqrt(x^2 + y^2) using polar coordinates.
     vMax  => 2*pi + 0.1,
   );
 
+Multiple surfaces can be added with the addSurface method.
+
 =head2 Options
 
-Create a parametric surface (x(u,v), y(u,v), z(u,v)) using Graph3D(option => value):
-
-  xFunc       Subroutine that returns the x-coordinate from two inputs u and v.
-
-  yFunc       Subroutine that returns the y-coordinate from two inputs u and v.
-
-  zFunc       Subroutine that returns the z-coordinate from two inputs u and v.
-
-  uMin        The minimum, maximum, and step values for the u input.
-  uMax
-  uStep
-
-  vMin        The minimum, maximum, and step values for the v input.
-  vMax
-  vStep
+Create a graph object: $graph = Graph3D(option => value):
 
   height      The height and width of the div containing the graph.
   width
@@ -71,12 +62,32 @@ Create a parametric surface (x(u,v), y(u,v), z(u,v)) using Graph3D(option => val
 
   tex_border  Put (1) or don't put (0) a border around image in TeX output.
 
+Create a parametric surface (x(u,v), y(u,v), z(u,v)) using $graph->addSurface(option => value):
+
+  xFunc       Subroutine that returns the x-coordinate from two inputs u and v.
+
+  yFunc       Subroutine that returns the y-coordinate from two inputs u and v.
+
+  zFunc       Subroutine that returns the z-coordinate from two inputs u and v.
+
+  uMin        The minimum, maximum, and step values for the u input.
+  uMax
+  uStep
+
+  vMin        The minimum, maximum, and step values for the v input.
+  vMax
+  vStep
+
   autoGen     Automatically generate the points using xFunc, yFunc, zFunc.
               Turn this off (0) to plot data.
 
   xPoints     A string that is a double array "[[a,b,c,...],[d,e,f,...],...]"
   yPoints     containing the data for the plot. Provide this string to plot fixed
   zPoints     data and turn autoGen off (speeds up plots with fixed data).
+
+  colorscale  The colorscale to use for the surface plot. Some options include
+              'BdBu' (default), 'YlOrRd', 'YlGnBu', 'Portland', 'Picnic', 'Jet', 'Hot'
+              'Greys', 'Greens', 'Electric', 'Earth', 'Bluered', and 'Blackbody'
 
 =cut
 
@@ -86,11 +97,12 @@ sub _plotly3D_init {
 }
 
 our $plotlyCount = 0;
+
 package plotly3D;
 
 sub new {
-	my $self    = shift;
-	my $class   = ref($self) || $self;
+	my $self  = shift;
+	my $class = ref($self) || $self;
 
 	$plotlyCount++;
 	$self = bless {
@@ -110,14 +122,14 @@ sub new {
 	return $self;
 }
 
-sub addSurface { push(@{shift->{plots}}, plotly3D::Surface->new(@_)); }
+sub addSurface { push(@{ shift->{plots} }, plotly3D::Surface->new(@_)); }
 
 sub TeX {
-	my $self  = shift;
-	my $size  = $self->{tex_size}*0.001;
-	my $out   = ($self->{tex_border}) ? '\fbox{' : '\mbox{';
-	$out      .= "\\begin{minipage}{$size\\linewidth}\\centering\n";
-	$out      .= ($self->{title}) ? "{\\bf $self->{title}} \\\\\n" : '';
+	my $self = shift;
+	my $size = $self->{tex_size} * 0.001;
+	my $out  = ($self->{tex_border}) ? '\fbox{' : '\mbox{';
+	$out .= "\\begin{minipage}{$size\\linewidth}\\centering\n";
+	$out .= ($self->{title}) ? "{\\bf $self->{title}} \\\\\n" : '';
 	if ($self->{image}) {
 		$out .= &main::image($self->{image}, tex_size => 950);
 	} else {
@@ -137,7 +149,7 @@ sub HTML {
 	my @data  = ();
 	my $count = 0;
 
-	foreach (@{$self->{plots}}) {
+	foreach (@{ $self->{plots} }) {
 		$count++;
 		$plots .= $_->HTML($id, $count);
 		push(@data, "plotlyData${id}_$count");
@@ -188,8 +200,8 @@ sub Print {
 package plotly3D::Surface;
 
 sub new {
-	my $self    = shift;
-	my $class   = ref($self) || $self;
+	my $self  = shift;
+	my $class = ref($self) || $self;
 
 	$self = bless {
 		uMin       => -5,
