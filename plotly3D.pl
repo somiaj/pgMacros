@@ -70,13 +70,19 @@ Create a parametric surface (x(u,v), y(u,v), z(u,v)) using $graph->addSurface(op
 
   zFunc       Subroutine that returns the z-coordinate from two inputs u and v.
 
-  uMin        The minimum, maximum, and step values for the u input.
+  uMin        The minimum, maximum, values for the u input.
   uMax
-  uStep
+
+  uStep       The step size or number of points generated for the u input.
+  uCount      uStep = (uMax - uMin) / uCount unless uStep is defined.
+              Default is uCount = 20.
 
   vMin        The minimum, maximum, and step values for the v input.
   vMax
-  vStep
+
+  vStep       The step size or number of points generated for the v input.
+  vCount      vStep = (vMax - vMin) / vCount unless vStep is defined.
+              Default is uCount = 20.
 
   autoGen     Automatically generate the points using xFunc, yFunc, zFunc.
               Turn this off (0) to plot data.
@@ -206,10 +212,12 @@ sub new {
 	$self = bless {
 		uMin       => -5,
 		uMax       => 5,
-		uStep      => 0.1,
+		uStep      => 0,
+		uCount     => 20,
 		vMin       => -5,
 		vMax       => 5,
-		vStep      => 0.1,
+		vStep      => 0,
+		vCount     => 20,
 		xFunc      => sub { $_[0] },
 		yFunc      => sub { $_[1] },
 		zFunc      => sub { $_[0]**2 + $_[1]**2 },
@@ -220,6 +228,8 @@ sub new {
 		colorscale => 'RdBu',
 		@_,
 	}, $class;
+	$self->{uStep} = ($self->{uMax} - $self->{uMin}) / $self->{uCount} unless $self->{uStep};
+	$self->{vStep} = ($self->{vMax} - $self->{vMin}) / $self->{vCount} unless $self->{vStep};
 	$self->buildArray if $self->{autoGen};
 
 	return $self;
