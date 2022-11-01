@@ -213,7 +213,8 @@ sub new {
 			$dAkey = $ints->[0][2] =~ s/ //gr;
 			foreach (@$ints) {
 				my $dA = $_->[2] =~ s/ //gr;
-				$integrals{$dA} = integralHash->new($_, %options); }
+				$integrals{$dA} = integralHash->new($_, %options);
+			}
 		} else {
 			$dAkey = $ints->[2] =~ s/ //gr;
 			$integrals{$dAkey} = integralHash->new($ints, %options);
@@ -244,13 +245,13 @@ sub swapBounds {
 
 	# For single integrals allow reversing of bounds.
 	if ($num == 0) {
-		if (defined($ints->{$s_int->{diff}->string})) {
-			my $int     = $ints->{$self->{dAkey}};
-			my @bounds  = @{$int->{bounds}};
-			my @sbounds = @{$s_int->{bounds}};
+		if (defined($ints->{ $s_int->{diff}->string })) {
+			my $int     = $ints->{ $self->{dAkey} };
+			my @bounds  = @{ $int->{bounds} };
+			my @sbounds = @{ $s_int->{bounds} };
 			if ($bounds[0][0] == $sbounds[0][1] && $bounds[0][1] == $sbounds[0][0]) {
 				$int->{bounds} = $s_int->{bounds};
-				$int->{func} = main::Compute('-(' . $int->{func}->string . ')')->reduce('-(-x)' => 1);
+				$int->{func}   = main::Compute('-(' . $int->{func}->string . ')')->reduce('-(-x)' => 1);
 			}
 			return 1;
 		}
@@ -307,7 +308,10 @@ sub cmp_preprocess {
 	foreach (0 .. 2 * $num + 1) {
 		my $input = $inputs->{ $self->ANS_NAME($_) };
 		push(@raw, defined($input) ? $input : '');
-		my $tmpAns = (defined($input) && $input ne '') ? $dAkey->cmp->evaluate($input) : '';
+		my $tmpAns =
+			(defined($input) && $input ne '')
+			? $dAkey->cmp(showDomainErrors => 0, showTypeWarnings => 0, showEqualErrors => 0)->evaluate($input)
+			: '';
 
 		# Use a blank answer to still build student's integral if there is an error.
 		if (ref($tmpAns) eq 'AnswerHash') {
@@ -354,7 +358,7 @@ sub cmp_int {
 	# Find integral based off of student's differential
 	my $s_dA = $s_int->{diff}->string =~ s/\*//gr;
 	if ($s_int->{diffOk} && (defined($integrals->{$s_dA}) || $self->swapBounds($s_int))) {
-		$self->swapBounds($s_int) if ($num == 1); # Force possible bound swap of single integrals.
+		$self->swapBounds($s_int) if ($num == 1);    # Force possible bound swap of single integrals.
 		$score++;
 	} else {
 		push(@$errors, "The differential $s_dA is invalid for this integral.");
@@ -402,7 +406,7 @@ sub printIntegral {
 	my $num   = $self->{num} - 1;
 	my $size  = $self->{size};
 	my $type  = $self->{type};
-	my $upos  = ($type eq 'int') ? ' style="position: relative; left: 15px;"' : '';
+	my $upos  = ($type eq 'int') ? ' style="position: relative; left: 15px;"'  : '';
 	my $lpos  = ($type eq 'int') ? ' style="position: relative; right: 15px;"' : '';
 	my $label = $self->{label} || '';
 	my $out   = '';
