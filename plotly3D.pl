@@ -62,6 +62,11 @@ Create a graph object: $graph = Graph3D(option => value):
 
   tex_border  Put (1) or don't put (0) a border around image in TeX output.
 
+  scene       Add a JavaScript sceen configuration dictonary to the plotly layout.
+              Example: scene => 'aspectmode: "manual", aspectratio: {x: 1, y: 1, z: 1},
+              xaxis: { range: [0,2] }, yaxis: { range: [0,3] }, zaxis: { range: [1,4] }'
+              https://plotly.com/javascript/3d-axes/ for more examples.
+
 Create a parametric surface (x(u,v), y(u,v), z(u,v)) using $graph->addSurface(option => value):
 
   xFunc       Subroutine that returns the x-coordinate from two inputs u and v.
@@ -119,6 +124,7 @@ sub new {
 		title      => '',
 		bgcolor    => '#f5f5f5',
 		style      => 'border: solid 2px; display: inline-block; margin: 5px; text-align: center;',
+		scene      => '',
 		image      => '',
 		tex_size   => 500,
 		tex_border => 1,
@@ -154,6 +160,7 @@ sub HTML {
 	my $plots = '';
 	my @data  = ();
 	my $count = 0;
+	my $scene = ($self->{scene}) ? "scene: { $self->{scene} }," : '';
 
 	foreach (@{ $self->{plots} }) {
 		$count++;
@@ -173,6 +180,7 @@ var plotlyLayout$id = {
 	autosize: true,
 	showlegend: false,
 	paper_bgcolor: "$self->{bgcolor}",
+	$scene
 	margin: {
 		l: 5,
 		r: 5,
