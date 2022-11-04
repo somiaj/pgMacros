@@ -275,13 +275,15 @@ sub HTML {
 	my $self  = shift;
 	my $id    = shift || 1;
 	my $count = shift || 1;
+	my $scale = ($self->{colorscale} =~ /^\[/) ? $self->{colorscale} : "'$self->{colorscale}'";
+
 	return <<END_OUTPUT;
 var plotlyData${id}_$count = {
 	x: $self->{xPoints},
 	y: $self->{yPoints},
 	z: $self->{zPoints},
 	type: 'surface',
-	colorscale: '$self->{colorscale}',
+	colorscale: $scale,
 	showscale: false,
 };
 END_OUTPUT
