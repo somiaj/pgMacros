@@ -300,6 +300,10 @@ sub cmp_preprocess {
 	my $dAkey   = $self->{integrals}{ $self->{dAkey} }->{diff};
 	my @errors  = ();
 	$ans->{_filter_name} = 'Build Integral';
+	$ans->{cmp_class} = $self->type;
+
+	# Determine if previewing answer.
+	$ans->{isPreview} = $inputs->{previewAnswers} || (($inputs->{action} // '') =~ m/^Preview/);
 
 	# Get ARRAY of responses.
 	# Unsure how to deal with badly formatted student input data when trying to make
@@ -353,7 +357,7 @@ sub cmp_int {
 	$ans->{_filter_name} = 'Check Integral';
 
 	# Stop if previewing answer.
-	return $ans if $ansHash->{isPreview};
+	return $ans if $ans->{isPreview};
 
 	# Find integral based off of student's differential
 	my $s_dA = $s_int->{diff}->string =~ s/\*//gr;
