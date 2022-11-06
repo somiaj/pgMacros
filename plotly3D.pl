@@ -109,6 +109,17 @@ Create a parametric curve (x(t), y(t), z(t)) using $graph->addCurve(option => va
 
   opacity     The opacity of the plot, which is a number from 0 to 1. Default: 1.
 
+  isJS        The functions xFunc, yFunc, and zFunc are JavaScript functions whose input
+              is the variables u and v, and whose output is a single number. Default: 0.
+              Allows using JavaScript functions to generate the surface on the client
+              instead of perl functions on the server. Example:
+                  $graph->addSurface(
+                      xFunc => 'return u;',
+                      yFunc => 'return v;',
+                      zFunc => 'return u**2 + v**2;',
+                      isJS  => 1,
+                  );
+
 =head2 addSurface OPTIONS
 
 Create a parametric surface (x(u,v), y(u,v), z(u,v)) using $graph->addSurface(option => value):
@@ -145,6 +156,17 @@ Create a parametric surface (x(u,v), y(u,v), z(u,v)) using $graph->addSurface(op
               'Greys', 'Greens', 'Electric', 'Earth', 'Bluered', and 'Blackbody'
 
   opacity     The opacity of the plot, which is a number from 0 to 1. Default: 1.
+
+  isJS        The functions xFunc, yFunc, and zFunc are JavaScript functions whose input
+              is the variable t, and whose output is a single number. Default: 0.
+              Allows using JavaScript functions to generate the curve on the client
+              instead of perl functions on the server. Example:
+                  $graph->addCurve(
+                      xFunc => 'return t*Math.cos(t);',
+                      yFunc => 'return t*Math.sin(t);',
+                      zFunc => 'return t;',
+                      isJS  => 1,
+                  );
 
 =cut
 
@@ -214,32 +236,34 @@ sub HTML {
 		$plots .= $_->HTML($id, $count);
 		push(@data, "plotlyData${id}_$count");
 	}
+	$plots =~ s/^\t//;
 	my $dataout = '[' . join(', ', @data) . ']';
 
-	return <<END_OUTPUT;
+	return "\n" . <<END_OUTPUT;
 <div style="width: ${width}px; $self->{style}">
-$title
-<div id="plotlyDiv$id" style="width: $self->{width}px; height: $self->{height}px;"></div>
+	$title
+	<div id="plotlyDiv$id" style="width: $self->{width}px; height: $self->{height}px;"></div>
 </div>
 <script>
-$plots
-var plotlyLayout$id = {
-	autosize: true,
-	showlegend: false,
-	paper_bgcolor: "$self->{bgcolor}",
-	$scene
-	margin: {
-		l: 5,
-		r: 5,
-		b: 5,
-		t: 5,
-	}
-};
-Plotly.newPlot('plotlyDiv$id', $dataout, plotlyLayout$id);
+document.addEventListener("DOMContentLoaded", function() {
+	$plots
+	var plotlyLayout$id = {
+		autosize: true,
+		showlegend: false,
+		paper_bgcolor: "$self->{bgcolor}",
+		$scene
+		margin: {
+			l: 5,
+			r: 5,
+			b: 5,
+			t: 5,
+		}
+	};
+	Plotly.newPlot('plotlyDiv$id', $dataout, plotlyLayout$id);
+});
 </script>
-END_OUTPUT
 
-	return $out;
+END_OUTPUT
 }
 
 sub Print {
@@ -277,6 +301,7 @@ sub new {
 		yFunc      => sub { $_[1] },
 		zFunc      => sub { $_[0]**2 + $_[1]**2 },
 		autoGen    => 1,
+		isJS       => 0,
 		xPoints    => '',
 		yPoints    => '',
 		zPoints    => '',
@@ -286,7 +311,7 @@ sub new {
 	}, $class;
 	$self->{uStep} = ($self->{uMax} - $self->{uMin}) / $self->{uCount} unless $self->{uStep};
 	$self->{vStep} = ($self->{vMax} - $self->{vMin}) / $self->{vCount} unless $self->{vStep};
-	$self->buildArray if $self->{autoGen};
+	$self->buildArray if ($self->{autoGen} && !$self->{isJS});
 
 	return $self;
 }
@@ -319,22 +344,68 @@ sub buildArray {
 	$self->{zPoints} = "[$zPts]";
 }
 
-sub HTML {
+sub genJS {
 	my $self  = shift;
 	my $id    = shift || 1;
 	my $count = shift || 1;
-	my $scale = ($self->{colorscale} =~ /^\[/) ? $self->{colorscale} : "'$self->{colorscale}'";
-
 	return <<END_OUTPUT;
-var plotlyData${id}_$count = {
-	x: $self->{xPoints},
-	y: $self->{yPoints},
-	z: $self->{zPoints},
-	type: 'surface',
-	opacity: $self->{opacity},
-	colorscale: $scale,
-	showscale: false,
-};
+	var xData${id}_$count = [];
+	var yData${id}_$count = [];
+	var zData${id}_$count = [];
+
+	function xFunc${id}_$count(u, v) {
+		$self->{xFunc}
+	}
+	function yFunc${id}_$count(u, v) {
+		$self->{yFunc}
+	}
+	function zFunc${id}_$count(u, v) {
+		$self->{zFunc}
+	}
+
+	for (var u = $self->{uMin}; u <= $self->{uMax}; u += $self->{uStep}) {
+		var xRow = [];
+		var yRow = [];
+		var zRow = [];
+		for (var v = $self->{vMin}; v <= $self->{vMax}; v += $self->{vStep}) {
+			xRow.push(xFunc${id}_$count(u, v));
+			yRow.push(yFunc${id}_$count(u, v));
+			zRow.push(zFunc${id}_$count(u, v));
+		}
+		xData${id}_$count.push(xRow);
+		yData${id}_$count.push(yRow);
+		zData${id}_$count.push(zRow);
+	}
+END_OUTPUT
+}
+
+sub HTML {
+	my $self    = shift;
+	my $id      = shift || 1;
+	my $count   = shift || 1;
+	my $scale   = ($self->{colorscale} =~ /^\[/) ? $self->{colorscale} : "'$self->{colorscale}'";
+	my $xPoints = $self->{xPoints};
+	my $yPoints = $self->{yPoints};
+	my $zPoints = $self->{zPoints};
+	my $jsOut   = '';
+
+	if ($self->{isJS}) {
+		$xPoints = "xData${id}_$count";
+		$yPoints = "yData${id}_$count";
+		$zPoints = "zData${id}_$count";
+		$jsOut   = $self->genJS($id, $count);
+	}
+
+	return $jsOut . <<END_OUTPUT;
+	var plotlyData${id}_$count = {
+		x: $xPoints,
+		y: $yPoints,
+		z: $zPoints,
+		type: 'surface',
+		opacity: $self->{opacity},
+		colorscale: $scale,
+		showscale: false,
+	};
 END_OUTPUT
 }
 
@@ -354,6 +425,7 @@ sub new {
 		yFunc      => sub { sin($_[0]) },
 		zFunc      => sub { $_[0] },
 		autoGen    => 1,
+		isJS       => 0,
 		xPoints    => '',
 		yPoints    => '',
 		zPoints    => '',
@@ -363,7 +435,7 @@ sub new {
 		@_,
 	}, $class;
 	$self->{tStep} = ($self->{tMax} - $self->{tMin}) / $self->{tCount} unless $self->{tStep};
-	$self->buildArray if $self->{autoGen};
+	$self->buildArray if ($self->{autoGen} && !$self->{isJS});
 
 	return $self;
 }
@@ -388,26 +460,64 @@ sub buildArray {
 	$self->{zPoints} = "[$zPts]";
 }
 
-sub HTML {
+sub genJS {
 	my $self  = shift;
 	my $id    = shift || 1;
 	my $count = shift || 1;
-	my $scale = ($self->{colorscale} =~ /^\[/) ? $self->{colorscale} : "'$self->{colorscale}'";
-
 	return <<END_OUTPUT;
-var plotlyData${id}_$count = {
-	x: $self->{xPoints},
-	y: $self->{yPoints},
-	z: $self->{zPoints},
-	type: 'scatter3d',
-	mode: 'lines',
-	opacity: $self->{opacity},
-	line: {
-		width: $self->{width},
-		color: $self->{zPoints},
-		colorscale: $scale,
-	},
-};
+	var xData${id}_$count = [];
+	var yData${id}_$count = [];
+	var zData${id}_$count = [];
+
+	function xFunc${id}_$count(t) {
+		$self->{xFunc}
+	}
+	function yFunc${id}_$count(t) {
+		$self->{yFunc}
+	}
+	function zFunc${id}_$count(t) {
+		$self->{zFunc}
+	}
+
+	for (var t = $self->{tMin}; t <= $self->{tMax}; t += $self->{tStep}) {
+		xData${id}_$count.push(xFunc${id}_$count(t));
+		yData${id}_$count.push(yFunc${id}_$count(t));
+		zData${id}_$count.push(zFunc${id}_$count(t));
+	}
+END_OUTPUT
+}
+
+sub HTML {
+	my $self    = shift;
+	my $id      = shift || 1;
+	my $count   = shift || 1;
+	my $scale   = ($self->{colorscale} =~ /^\[/) ? $self->{colorscale} : "'$self->{colorscale}'";
+	my $xPoints = $self->{xPoints};
+	my $yPoints = $self->{yPoints};
+	my $zPoints = $self->{zPoints};
+	my $jsOut   = '';
+
+	if ($self->{isJS}) {
+		$xPoints = "xData${id}_$count";
+		$yPoints = "yData${id}_$count";
+		$zPoints = "zData${id}_$count";
+		$jsOut   = $self->genJS($id, $count);
+	}
+
+	return $jsOut . <<END_OUTPUT;
+	var plotlyData${id}_$count = {
+		x: $xPoints,
+		y: $yPoints,
+		z: $zPoints,
+		type: 'scatter3d',
+		mode: 'lines',
+		opacity: $self->{opacity},
+		line: {
+			width: $self->{width},
+			color: $zPoints,
+			colorscale: $scale,
+		},
+	};
 END_OUTPUT
 }
 
