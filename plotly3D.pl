@@ -311,6 +311,9 @@ sub new {
 	}, $class;
 	$self->{uStep} = ($self->{uMax} - $self->{uMin}) / $self->{uCount} unless $self->{uStep};
 	$self->{vStep} = ($self->{vMax} - $self->{vMin}) / $self->{vCount} unless $self->{vStep};
+	# Adjust max values to deal with rounding issues.
+	$self->{uMax} += $self->{uStep} / 2;
+	$self->{vMax} += $self->{vStep} / 2;
 	$self->buildArray if ($self->{autoGen} && !$self->{isJS});
 
 	return $self;
@@ -323,11 +326,11 @@ sub buildArray {
 	my $zPts = '';
 	my ($u, $v);
 
-	for ($u = $self->{uMin}; $u <= $self->{uMax}; $u += $self->{uStep}) {
+	for ($u = $self->{uMin}; $u < $self->{uMax}; $u += $self->{uStep}) {
 		my @xTmp = ();
 		my @yTmp = ();
 		my @zTmp = ();
-		for ($v = $self->{vMin}; $v <= $self->{vMax}; $v += $self->{vStep}) {
+		for ($v = $self->{vMin}; $v < $self->{vMax}; $v += $self->{vStep}) {
 			push @xTmp, $self->{xFunc}($u, $v);
 			push @yTmp, $self->{yFunc}($u, $v);
 			push @zTmp, $self->{zFunc}($u, $v);
@@ -363,11 +366,11 @@ sub genJS {
 		$self->{zFunc}
 	}
 
-	for (var u = $self->{uMin}; u <= $self->{uMax}; u += $self->{uStep}) {
+	for (var u = $self->{uMin}; u < $self->{uMax}; u += $self->{uStep}) {
 		var xRow = [];
 		var yRow = [];
 		var zRow = [];
-		for (var v = $self->{vMin}; v <= $self->{vMax}; v += $self->{vStep}) {
+		for (var v = $self->{vMin}; v < $self->{vMax}; v += $self->{vStep}) {
 			xRow.push(xFunc${id}_$count(u, v));
 			yRow.push(yFunc${id}_$count(u, v));
 			zRow.push(zFunc${id}_$count(u, v));
@@ -435,6 +438,8 @@ sub new {
 		@_,
 	}, $class;
 	$self->{tStep} = ($self->{tMax} - $self->{tMin}) / $self->{tCount} unless $self->{tStep};
+	# Adjust max value to deal with rounding errors.
+	$self->{tMax} += $self->{tStep} / 2;
 	$self->buildArray if ($self->{autoGen} && !$self->{isJS});
 
 	return $self;
@@ -447,7 +452,7 @@ sub buildArray {
 	my $zPts = '';
 	my $t;
 
-	for ($t = $self->{tMin}; $t <= $self->{tMax}; $t += $self->{tStep}) {
+	for ($t = $self->{tMin}; $t < $self->{tMax}; $t += $self->{tStep}) {
 		$xPts .= $self->{xFunc}($t) . ',';
 		$yPts .= $self->{yFunc}($t) . ',';
 		$zPts .= $self->{zFunc}($t) . ',';
@@ -479,7 +484,7 @@ sub genJS {
 		$self->{zFunc}
 	}
 
-	for (var t = $self->{tMin}; t <= $self->{tMax}; t += $self->{tStep}) {
+	for (var t = $self->{tMin}; t < $self->{tMax}; t += $self->{tStep}) {
 		xData${id}_$count.push(xFunc${id}_$count(t));
 		yData${id}_$count.push(yFunc${id}_$count(t));
 		zData${id}_$count.push(zFunc${id}_$count(t));
