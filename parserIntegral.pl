@@ -604,21 +604,22 @@ sub new {
 	return $self;
 }
 
-# Convert integral parts to Value objects.
+# Convert integral parts to Formula objects.
+# Use Formula's as they give nicer output of constants like pi.
 sub mkValue {
 	my $self   = shift;
 	my $num    = $self->num;
 	my $errors = $self->{errors};
 
-	push(@$errors, 'Missing differential.<br>')     unless (defined($self->{diff}));
-	$self->{diff} = Value::makeValue($self->{diff}) unless (Value::isValue($self->{diff}));
-	push(@$errors, 'Missing integrand.<br>')        unless (defined($self->{func}));
-	$self->{func} = Value::makeValue($self->{func}) unless (Value::isValue($self->{func}));
+	push(@$errors, 'Missing differential.<br>')  unless (defined($self->{diff}));
+	$self->{diff} = main::Formula($self->{diff}) unless (Value::isValue($self->{diff}));
+	push(@$errors, 'Missing integrand.<br>')     unless (defined($self->{func}));
+	$self->{func} = main::Formula($self->{func}) unless (Value::isValue($self->{func}));
 	foreach (0 .. $num - 1) {
 		my ($lb, $ub) = @{ $self->{bounds}[$_] };
 		push(@$errors, sprintf('Missing %s bounds.<br>', $self->boundString($_))) unless (defined($lb) && defined($ub));
-		$self->{bounds}[$_][0] = Value::makeValue($lb) unless (Value::isValue($lb));
-		$self->{bounds}[$_][1] = Value::makeValue($ub) unless (Value::isValue($ub));
+		$self->{bounds}[$_][0] = main::Formula($lb) unless (Value::isValue($lb));
+		$self->{bounds}[$_][1] = main::Formula($ub) unless (Value::isValue($ub));
 	}
 	Value::Error(join('<br>', @$errors)) if ($self->{strict} && @$errors);
 }
