@@ -78,7 +78,7 @@ sub figDiv {
 	my %img_options = (
 		tex_size        => 950,
 		alt             => $options{alt},
-		extra_html_tags => $options{extra_html_tags};
+		extra_html_tags => $options{extra_html_tags},
 	);
 	$img_options{width}  = $options{width}  if ($options{width});
 	$img_options{height} = $options{height} if ($options{height});
