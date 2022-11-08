@@ -95,7 +95,7 @@ of the points. The colorscale can be one of the following predefined names:
     'BdBu', 'YlOrRd', 'YlGnBu', 'Portland', 'Picnic', 'Jet', 'Hot'
     'Greys', 'Greens', 'Electric', 'Earth', 'Bluered', or 'Blackbody'
 
-You can also define a custom colorscale as a list of colors for weights
+You can also define a custom colorscale as a list of colors for values
 ranging from 0 to 1. For example the default RdBu is the following colorset
 (note this must be a string since the array is passed to javascript):
 
@@ -116,9 +116,10 @@ option in addCurve or addSurface methods. The valid types are:
 
   jsmd    This is the default type, in which the functions are converted
           from math formulas into JavaScript functions to generate the
-          plot. This should accept standard mathematical notation of
-          functions with one major exception, multiplication must be an
-          explicit '*'. 'ucos(v)' will not be accepted, but 'u*cos(v)' will.
+          plot. This should accept standard mathematical notation with
+          some exceptions: Multiplication must be an explicit "*".
+          "ucos(v)" is not be accepted, but "u*cos(v)" will. JavaScript
+          considers "-u^2" not well defined, instead use "-(u^2)".
 
   js      The functions are interpreted as raw JavaScript functions. The
           functions will be passed the defined variables and return a
@@ -129,10 +130,8 @@ option in addCurve or addSurface methods. The valid types are:
           single value.
 
   data    The functions are interpreted as a nested array of data points to
-          bebe  sent directly to plotly to plot. This is useful for static plots
+          be sent directly to plotly to plot. This is useful for static plots
           in which the points do not need to be generated each time.
-          You still have to include the arrays with the variable bounds
-          with data plot, but they are not used.
 
 =head1 Graph3D OPTIONS
 
@@ -264,13 +263,12 @@ sub Print {
 	my $self = shift;
 	my $out  = '';
 
-	$self->buildArray if ($self->{autoGen});
 	if ($main::displayMode =~ /HTML/) {
 		$out = $self->HTML;
 	} elsif ($main::displayMode eq 'TeX') {
 		$out = $self->TeX;
 	} else {
-		$out = "Unsupported display mode.";
+		$out = "Unsupported display mode: $main::displayMode\n";
 	}
 	return $out;
 }
@@ -278,14 +276,35 @@ sub Print {
 # Base plot class
 package plotly3D::Plot;
 
+sub cmpBounds {
+	my $self   = shift;
+	my $bounds = shift;
+	Value::Error('Bounds must be an array with two or three items.')
+		unless (ref($bounds) eq 'ARRAY' && scalar(@$bounds) > 1);
+
+	my ($min, $max, $count) = @$bounds;
+	$count = shift unless $count;
+	my $step = ($max - $min) / $count;
+	$max += $step / 2;    # Fudge factor to deal with rounding issues.
+	return ($min, $max, $step);
+}
+
 sub parseFunc {
 	my $self = shift;
 	my $func = shift;
+	Value::Error('First input must be an array with three items.')
+		unless (ref($func) eq 'ARRAY' && scalar(@$func) == 3);
 
 	if ($self->{funcType} eq 'data') {
 		($self->{xPoints}, $self->{yPoints}, $self->{zPoints}) = @$func;
 	} else {
 		($self->{xFunc}, $self->{yFunc}, $self->{zFunc}) = @$func;
+		if ($self->{nVars} == 2) {
+			($self->{uMin}, $self->{uMax}, $self->{uStep}) = $self->cmpBounds(shift, 20);
+			($self->{vMin}, $self->{vMax}, $self->{vStep}) = $self->cmpBounds(shift, 20);
+		} else {
+			($self->{tMin}, $self->{tMax}, $self->{tStep}) = $self->cmpBounds(shift, 100);
+		}
 	}
 }
 
@@ -309,7 +328,7 @@ sub genPoints {
 	} elsif ($type eq 'perl') {
 		$self->buidArray;
 	} else {
-		die "Unkown plot type: $type\n";
+		Value::Error("Unkown plot type: $type\n");
 	}
 }
 
@@ -375,7 +394,7 @@ sub funcToJS {
 		} elsif (($match) = ($func =~ m/^([^A-Za-z^]+)/)) {
 			$func = substr($func, length($match));
 			$out .= $match;
-		} else {    # Shouldn't happen, but to stop infinite loop for safety.
+		} else {    # Shouldn't happen, but to stop an infinite loop for safety.
 			Value::Error("Unknown error parsing function.");
 		}
 	}
@@ -476,16 +495,9 @@ our @ISA = ('plotly3D::Plot');
 sub new {
 	my $self    = shift;
 	my $data    = shift;
-	my $uBounds = shift;
-	my $vBounds = shift;
+	my $uBounds = (ref($_[0]) eq 'ARRAY') ? shift : '';
+	my $vBounds = (ref($_[0]) eq 'ARRAY') ? shift : '';
 	my $class   = ref($self) || $self;
-
-	Value::Error('First input must be an array with three items.')
-		unless (ref($data) eq 'ARRAY' && scalar(@$data) == 3);
-	Value::Error('Second input must be an array with two or three items.')
-		unless (ref($uBounds) eq 'ARRAY' && scalar(@$uBounds) > 1);
-	Value::Error('Third input must be an array with two or three items.')
-		unless (ref($vBounds) eq 'ARRAY' && scalar(@$vBounds) > 1);
 
 	$self = bless {
 		funcType   => 'jsmd',
@@ -495,18 +507,7 @@ sub new {
 		nVars      => 2,
 		@_,
 	}, $class;
-
-	# Parse input to create function and variable bounds.
-	my ($uCount, $vCount);
-	$self->parseFunc($data);
-	($self->{uMin}, $self->{uMax}, $uCount) = @$uBounds;
-	($self->{vMin}, $self->{vMax}, $vCount) = @$vBounds;
-	$uCount        = 20 unless $uCount;
-	$vCount        = 20 unless $vCount;
-	$self->{uStep} = ($self->{uMax} - $self->{uMin}) / $uCount;
-	$self->{uMax} += $self->{uStep} / 2;    # Fudge factor to deal with rounding issues.
-	$self->{vStep} = ($self->{vMax} - $self->{vMin}) / $vCount;
-	$self->{vMax} += $self->{vStep} / 2;    # Fudge factor to deal with rounding issues.
+	$self->parseFunc($data, $uBounds, $vBounds);
 
 	return $self;
 }
@@ -538,13 +539,8 @@ our @ISA = ('plotly3D::Plot');
 sub new {
 	my $self    = shift;
 	my $data    = shift;
-	my $tBounds = shift;
+	my $tBounds = (ref($_[0]) eq 'ARRAY') ? shift : '';
 	my $class   = ref($self) || $self;
-
-	Value::Error('First input must be an array with three items.')
-		unless (ref($data) eq 'ARRAY' && scalar(@$data) == 3);
-	Value::Error('Second input must be an array with two or three items.')
-		unless (ref($tBounds) eq 'ARRAY' && scalar(@$tBounds) > 1);
 
 	$self = bless {
 		funcType   => 'jsmd',
@@ -555,14 +551,7 @@ sub new {
 		nVars      => 1,
 		@_,
 	}, $class;
-
-	# Parse input to create function and variable bounds.
-	my $tCount;
-	$self->parseFunc($data);
-	($self->{tMin}, $self->{tMax}, $tCount) = @$tBounds;
-	$tCount = 100 unless $tCount;
-	$self->{tStep} = ($self->{tMax} - $self->{tMin}) / $tCount;
-	$self->{tMax} += $self->{tStep} / 2;    # Fudge factor to deal with rounding issues.
+	$self->parseFunc($data, $tBounds);
 
 	return $self;
 }
