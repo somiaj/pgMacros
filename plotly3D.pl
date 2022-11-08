@@ -7,44 +7,26 @@ https://plotly.com/javascript/
 
 =head1 DESCRIPTION
 
-Loading this macro adds the Graph3D method which creates a 3D graph object.
-The graph object can be configured by a list of options of the form "option => value".
+Loading this macro adds the Graph3D method which creates a 3D
+graph object. The graph object can be configured by a list of
+options of the form "option => value".
 
     $graph = Graph3D(options);
 
 Use the addCurve method to add a parametric curve to the graph.
-The following adds a helix to the graph. xFunc, yFunc, and zFunc
-are perl functions which return the x, y, z value of each point
-using a single parameter t. tMin and tMax are the minimum and maximum
-value of the parameter t, and tCount is the number of points to generate.
+The following adds a helix to the graph. The first array is
+the parametric functions x(t), y(t), and z(t), and the second
+array is the bounds with the optional number of points to plot.
 
-    $graph->addCurve(
-        xFunc  => sub { cos($_[0]); },
-        yFunc  => sub { sin($_[0]); },
-        zFunc  => sub { $_[0]; },
-        tMin   => 0,
-        tMax   => 6*pi,
-        tCount => 100,
-    );
+    $graph->addCurve(['cos(t)', 'sin(t)', 't'], [0, 6*pi, 150]);
 
 Use the addSurface method to add a parametric surface to the graph.
-The following adds the parabolic surface z = x^2 + y^2. xFunc, yFunc,
-and zFunc are perl functions which return the x, y, z value of each
-point using two parameters u and v. uMin, uMax, vMin, and vMax are
-the minimum and maximum value of the two parameters, and uCount and
-vCount are the number of points to generate.
+The following adds the parabolic surface z = x^2 + y^2. The first
+array is the parametric functions x(u,v), y(u,v), and z(u,v), followed
+by the u-bounds and v-bounds with optional number of points to plot.
+Note the total points computed is the product of the two numbers given.
 
-    $graph->addSurface(
-        xFunc  => sub { $_[0] },
-        yFunc  => sub { $_[1] },
-        zFunc  => sub { $_[0]**2 + $_[1]**2 },
-        uMin   => -5,
-        uMax   => 5,
-        uCount => 20,
-        vMin   => -5,
-        vMax   => 5,
-        vCount => 20,
-    );
+    $graph->addSurface(['u', 'v', 'u^2 + v^2'], [-5, 5, 20], [-5, 5, 20]);
 
 Output the graph in PGML using the Print method.
 
@@ -52,9 +34,110 @@ Output the graph in PGML using the Print method.
 
 Multiple curves surfaces can be added with the appropriate methods.
 
-=head2 Graph3D OPTIONS
+=head1 PARAMETRIC CURVES
 
-Create a graph object: $graph = Graph3D(option => value):
+The addCurve method takes two arrays as input followed by a list
+of options. The first array is three parametric functions, followed
+by the minimum, maximum, and optional number of points to plot.
+If the number of points is not given, it defaults to 100.
+
+    $graph->addCurve(
+        [xFunction, yFunction, zFunction],
+        [tMin, tMax, tCount],
+        options
+    );
+
+The additional options are given in a 'option => value' format.
+The current available options (and defaults) are:
+
+  width      => 5,       The width/thickness of the curve.
+
+  colorscale => 'RdBu',  The colorscale for the curve, which is a heatmap
+                         based on the z-value of the curve.
+
+  opacity    => 1,       The opacity of a curve between 0 and 1.
+
+  funcType   => 'jsmd',  How to interpret the parametric functions (see below).
+
+  variables  => ['t'],   The variable to use in the JavaScript function.
+
+=head1 PARAMETRIC SURFACES
+
+The addSurface method takes three arrays as input followed by a list
+of options. The first array is three parametric functions, followed by
+the minimum, maximum, and optional number of points for each of the
+two variables. If the number of points is not given, it defaults to 20.
+
+    $graph->addSurface(
+        [xFunction, yFunction, zFunction],
+        [uMin, uMax, uCount],
+        [vMin, vMax, vCount],
+        options
+    );
+
+The additional options are given in a 'option => value' format.
+The current available options (and defaults) are:
+
+  colorscale => 'RdBu',      The colorscale for the curve, which is a heatmap
+                             based on the z-value of the surface.
+
+  opacity    => 1,           The opacity of a curve between 0 and 1.
+
+  funcType   => 'jsmd',      How to interpret the parametric functions (see below).
+
+  variables  => ['u', 'v'],  The variables to use in the JavaScript function.
+
+=head1 COLORSCALES
+
+The colorscale colors the points of the curve/surface based on the z-value
+of the points. The colorscale can be one of the following predefined names:
+
+    'BdBu', 'YlOrRd', 'YlGnBu', 'Portland', 'Picnic', 'Jet', 'Hot'
+    'Greys', 'Greens', 'Electric', 'Earth', 'Bluered', or 'Blackbody'
+
+You can also define a custom colorscale as a list of colors for weights
+ranging from 0 to 1. For example the default RdBu is the following colorset
+(note this must be a string since the array is passed to javascript):
+
+    "[[0, 'rgb(5,10,172)'], [0.35, 'rgb(106,137,247)'],
+      [0.5, 'rgb(190,190,190)'], [0.6, 'rgb(220,170,132)'],
+      [0.7, 'rgb(230,145,90)'], [1, 'rgb(178,10,28)']]"
+
+A colorset can have any number of color points between 0 and 1. To make
+the plot a single color, set the color for 0 and 1 to be the same:
+
+    "[[0, 'rgb(0,200,0)'], [1, 'rgb(0,200,0)']]"
+
+=head1 FUNCTION TYPES
+
+The functions to generate the plot can be either mathematical, JavaScript,
+Perl, or raw data, and this can be controlled using the funcType => type
+option in addCurve or addSurface methods. The valid types are:
+
+  jsmd    This is the default type, in which the functions are converted
+          from math formulas into JavaScript functions to generate the
+          plot. This should accept standard mathematical notation of
+          functions with one major exception, multiplication must be an
+          explicit '*'. 'ucos(v)' will not be accepted, but 'u*cos(v)' will.
+
+  js      The functions are interpreted as raw JavaScript functions. The
+          functions will be passed the defined variables and return a
+          single value.
+
+  perl    The functions are interpreted as Perl subroutines. The functions
+          will be passed the appropriate number of inputs, and return a
+          single value.
+
+  data    The functions are interpreted as a nested array of data points to
+          bebe  sent directly to plotly to plot. This is useful for static plots
+          in which the points do not need to be generated each time.
+          You still have to include the arrays with the variable bounds
+          with data plot, but they are not used.
+
+=head1 Graph3D OPTIONS
+
+Create a graph object: $graph = Graph3D(option => value)
+The valid options are:
 
   height      The height and width of the div containing the graph.
   width
@@ -66,107 +149,18 @@ Create a graph object: $graph = Graph3D(option => value):
   bgcolor     The background color of the graph.
 
   image       Image filename to be used in hardcopy TeX output.
+              If no image is provided, the hardcopy TeX output
+              has a message that image must be viewed online.
 
   tex_size    Size of image in hardcopy TeX output as scale factor from 0 to 1000.
               1000 is 100%, 500 is 50%, etc.
 
   tex_border  Put (1) or don't put (0) a border around image in TeX output.
 
-  scene       Add a JavaScript sceen configuration dictonary to the plotly layout.
+  scene       Add a JavaScript scene configuration dictionary to the plotly layout.
               Example: scene => 'aspectmode: "manual", aspectratio: {x: 1, y: 1, z: 1},
               xaxis: { range: [0,2] }, yaxis: { range: [0,3] }, zaxis: { range: [1,4] }'
               https://plotly.com/javascript/3d-axes/ for more examples.
-
-=head2 addCurve OPTIONS
-
-Create a parametric curve (x(t), y(t), z(t)) using $graph->addCurve(option => value):
-
-  xFunc       Subroutine that returns the x-coordinate from one input t.
-
-  yFunc       Subroutine that returns the y-coordinate from one input t.
-
-  zFunc       Subroutine that returns the z-coordinate from one input t.
-
-  tMin        The minimum, maximum, values for the t input.
-  tMax
-
-  tStep       The step size or number of points generated for the t input.
-  tCount      tStep = (tMax - tMin) / tCount unless uStep is defined.
-              Default is tCount = 100.
-
-  width       The width of the curve. Default: 5
-
-  autoGen     Automatically generate the points using xFunc, yFunc, zFunc.
-              Turn this off (0) to plot data.
-
-  xPoints     A string that is a double array "[[a,b,c,...],[d,e,f,...],...]"
-  yPoints     containing the data for the plot. Provide this string to plot fixed
-  zPoints     data and turn autoGen off (speeds up plots with fixed data).
-
-  colorscale  The colorscale to use for the surface plot. Some options include
-              'BdBu' (default), 'YlOrRd', 'YlGnBu', 'Portland', 'Picnic', 'Jet', 'Hot'
-              'Greys', 'Greens', 'Electric', 'Earth', 'Bluered', and 'Blackbody'
-
-  opacity     The opacity of the plot, which is a number from 0 to 1. Default: 1.
-
-  isJS        The functions xFunc, yFunc, and zFunc are JavaScript functions whose input
-              is the variables u and v, and whose output is a single number. Default: 0.
-              Allows using JavaScript functions to generate the surface on the client
-              instead of perl functions on the server. Example:
-                  $graph->addSurface(
-                      xFunc => 'return u;',
-                      yFunc => 'return v;',
-                      zFunc => 'return u**2 + v**2;',
-                      isJS  => 1,
-                  );
-
-=head2 addSurface OPTIONS
-
-Create a parametric surface (x(u,v), y(u,v), z(u,v)) using $graph->addSurface(option => value):
-
-  xFunc       Subroutine that returns the x-coordinate from two inputs u and v.
-
-  yFunc       Subroutine that returns the y-coordinate from two inputs u and v.
-
-  zFunc       Subroutine that returns the z-coordinate from two inputs u and v.
-
-  uMin        The minimum, maximum, values for the u input.
-  uMax
-
-  uStep       The step size or number of points generated for the u input.
-  uCount      uStep = (uMax - uMin) / uCount unless uStep is defined.
-              Default is uCount = 20.
-
-  vMin        The minimum, maximum, and step values for the v input.
-  vMax
-
-  vStep       The step size or number of points generated for the v input.
-  vCount      vStep = (vMax - vMin) / vCount unless vStep is defined.
-              Default is uCount = 20.
-
-  autoGen     Automatically generate the points using xFunc, yFunc, zFunc.
-              Turn this off (0) to plot data.
-
-  xPoints     A string that is a double array "[[a,b,c,...],[d,e,f,...],...]"
-  yPoints     containing the data for the plot. Provide this string to plot fixed
-  zPoints     data and turn autoGen off (speeds up plots with fixed data).
-
-  colorscale  The colorscale to use for the surface plot. Some options include
-              'BdBu' (default), 'YlOrRd', 'YlGnBu', 'Portland', 'Picnic', 'Jet', 'Hot'
-              'Greys', 'Greens', 'Electric', 'Earth', 'Bluered', and 'Blackbody'
-
-  opacity     The opacity of the plot, which is a number from 0 to 1. Default: 1.
-
-  isJS        The functions xFunc, yFunc, and zFunc are JavaScript functions whose input
-              is the variable t, and whose output is a single number. Default: 0.
-              Allows using JavaScript functions to generate the curve on the client
-              instead of perl functions on the server. Example:
-                  $graph->addCurve(
-                      xFunc => 'return t*Math.cos(t);',
-                      yFunc => 'return t*Math.sin(t);',
-                      zFunc => 'return t;',
-                      isJS  => 1,
-                  );
 
 =cut
 
@@ -202,8 +196,8 @@ sub new {
 	return $self;
 }
 
-sub addSurface { push(@{ shift->{plots} }, plotly3D::Surface->new(@_)); }
-sub addCurve   { push(@{ shift->{plots} }, plotly3D::Curve->new(@_)); }
+sub addSurface { push(@{ shift->{plots} }, plotly3D::Plot::Surface->new(@_)); }
+sub addCurve   { push(@{ shift->{plots} }, plotly3D::Plot::Curve->new(@_)); }
 
 sub TeX {
 	my $self = shift;
@@ -224,7 +218,7 @@ sub TeX {
 sub HTML {
 	my $self  = shift;
 	my $id    = $self->{id};
-	my $width = $self->{width} + 5;
+	my $width = $self->{width} + 10;
 	my $title = ($self->{title}) ? "<strong>$self->{title}</strong>" : '';
 	my $plots = '';
 	my @data  = ();
@@ -281,91 +275,138 @@ sub Print {
 	return $out;
 }
 
-# plotly3D surface plots
-package plotly3D::Surface;
+# Base plot class
+package plotly3D::Plot;
 
-sub new {
-	my $self  = shift;
-	my $class = ref($self) || $self;
-
-	$self = bless {
-		uMin       => -5,
-		uMax       => 5,
-		uStep      => 0,
-		uCount     => 20,
-		vMin       => -5,
-		vMax       => 5,
-		vStep      => 0,
-		vCount     => 20,
-		xFunc      => sub { $_[0] },
-		yFunc      => sub { $_[1] },
-		zFunc      => sub { $_[0]**2 + $_[1]**2 },
-		autoGen    => 1,
-		isJS       => 0,
-		xPoints    => '',
-		yPoints    => '',
-		zPoints    => '',
-		colorscale => 'RdBu',
-		opacity    => 1,
-		@_,
-	}, $class;
-	$self->{uStep} = ($self->{uMax} - $self->{uMin}) / $self->{uCount} unless $self->{uStep};
-	$self->{vStep} = ($self->{vMax} - $self->{vMin}) / $self->{vCount} unless $self->{vStep};
-	# Adjust max values to deal with rounding issues.
-	$self->{uMax} += $self->{uStep} / 2;
-	$self->{vMax} += $self->{vStep} / 2;
-	$self->buildArray if ($self->{autoGen} && !$self->{isJS});
-
-	return $self;
-}
-
-sub buildArray {
+sub parseFunc {
 	my $self = shift;
-	my $xPts = '';
-	my $yPts = '';
-	my $zPts = '';
-	my ($u, $v);
+	my $func = shift;
 
-	for ($u = $self->{uMin}; $u < $self->{uMax}; $u += $self->{uStep}) {
-		my @xTmp = ();
-		my @yTmp = ();
-		my @zTmp = ();
-		for ($v = $self->{vMin}; $v < $self->{vMax}; $v += $self->{vStep}) {
-			push @xTmp, $self->{xFunc}($u, $v);
-			push @yTmp, $self->{yFunc}($u, $v);
-			push @zTmp, $self->{zFunc}($u, $v);
-		}
-		$xPts .= '[' . join(',', @xTmp) . '],';
-		$yPts .= '[' . join(',', @yTmp) . '],';
-		$zPts .= '[' . join(',', @zTmp) . '],';
+	if ($self->{funcType} eq 'data') {
+		($self->{xPoints}, $self->{yPoints}, $self->{zPoints}) = @$func;
+	} else {
+		($self->{xFunc}, $self->{yFunc}, $self->{zFunc}) = @$func;
 	}
-	chop $xPts;
-	chop $yPts;
-	chop $zPts;
-	$self->{xPoints} = "[$xPts]";
-	$self->{yPoints} = "[$yPts]";
-	$self->{zPoints} = "[$zPts]";
 }
 
-sub genJS {
+sub genPoints {
 	my $self  = shift;
 	my $id    = shift || 1;
 	my $count = shift || 1;
-	return <<END_OUTPUT;
+	my $type  = $self->{funcType};
+
+	if ($type eq 'data') {
+		# Manual data plot, nothing to do.
+	} elsif ($type eq 'jsmd' || $type eq 'js') {
+		if ($type eq 'jsmd') {
+			foreach ('xFunc', 'yFunc', 'zFunc') {
+				$self->{$_} = $self->funcToJS($self->{$_});
+			}
+		}
+		$self->{xPoints} = "xData${id}_$count";
+		$self->{yPoints} = "yData${id}_$count";
+		$self->{zPoints} = "zData${id}_$count";
+	} elsif ($type eq 'perl') {
+		$self->buidArray;
+	} else {
+		die "Unkown plot type: $type\n";
+	}
+}
+
+# Takes a pseudo function string and replaces with JavaScript functions.
+sub funcToJS {
+	my $self   = shift;
+	my $func   = shift;
+	my %vars   = map { $_ => $_ } @{ $self->{variables} };
+	my %tokens = (
+		sqrt    => 'Math.sqrt',
+		cbrt    => 'Math.cbrt',
+		hypot   => 'Math.hypot',
+		norm    => 'Math.hypot',
+		pow     => 'Math.pow',
+		exp     => 'Math.exp',
+		abs     => 'Math.abs',
+		round   => 'Math.round',
+		floor   => 'Math.floor',
+		ceil    => 'Math.ceil',
+		sign    => 'Math.sign',
+		int     => 'Math.trunc',
+		log     => 'Math.ln',
+		ln      => 'Math.ln',
+		cos     => 'Math.cos',
+		sin     => 'Math.sin',
+		tan     => 'Math.tan',
+		acos    => 'Math.acos',
+		arccos  => 'Math.acos',
+		asin    => 'Math.asin',
+		arcsin  => 'Math.asin',
+		atan    => 'Math.atan',
+		arctan  => 'Math.atan',
+		atan2   => 'Math.atan2',
+		cosh    => 'Math.cosh',
+		sinh    => 'Math.sinh',
+		tanh    => 'Math.tanh',
+		acosh   => 'Math.acosh',
+		arccosh => 'Math.arccosh',
+		asinh   => 'Math.asinh',
+		arcsinh => 'Math.asinh',
+		atanh   => 'Math.atanh',
+		arctanh => 'Math.arctanh',
+		min     => 'Math.min',
+		max     => 'Math.max',
+		random  => 'Math.random',
+		e       => 'Math.E',
+		pi      => 'Math.PI',
+		'^'     => '**',
+		%vars
+	);
+	my $out = '';
+	my $match;
+
+	$func =~ s/\s//g;
+	while (length($func) > 0) {
+		if (($match) = ($func =~ m/^([A-Za-z]+|\^)/)) {
+			$func = substr($func, length($match));
+			if ($tokens{$match}) {
+				$out .= $tokens{$match};
+			} else {
+				Value::Error("Unknown token $match in function.");
+			}
+		} elsif (($match) = ($func =~ m/^([^A-Za-z^]+)/)) {
+			$func = substr($func, length($match));
+			$out .= $match;
+		} else {    # Shouldn't happen, but to stop infinite loop for safety.
+			Value::Error("Unknown error parsing function.");
+		}
+	}
+	return "return $out;";
+}
+
+# JavaScript Functions Output
+sub genJS {
+	my $self = shift;
+	return '' unless ($self->{funcType} =~ /^js/);
+	my $id    = shift || 1;
+	my $count = shift || 1;
+	my $vars  = join(', ', @{ $self->{variables} });
+	my $JSout = <<END_OUTPUT;
 	var xData${id}_$count = [];
 	var yData${id}_$count = [];
 	var zData${id}_$count = [];
 
-	function xFunc${id}_$count(u, v) {
+	function xFunc${id}_$count($vars) {
 		$self->{xFunc}
 	}
-	function yFunc${id}_$count(u, v) {
+	function yFunc${id}_$count($vars) {
 		$self->{yFunc}
 	}
-	function zFunc${id}_$count(u, v) {
+	function zFunc${id}_$count($vars) {
 		$self->{zFunc}
 	}
+END_OUTPUT
 
+	if ($self->{nVars} == 2) {
+		$JSout .= <<END_OUTPUT;
 	for (var u = $self->{uMin}; u < $self->{uMax}; u += $self->{uStep}) {
 		var xRow = [];
 		var yRow = [];
@@ -380,69 +421,17 @@ sub genJS {
 		zData${id}_$count.push(zRow);
 	}
 END_OUTPUT
-}
-
-sub HTML {
-	my $self    = shift;
-	my $id      = shift || 1;
-	my $count   = shift || 1;
-	my $scale   = ($self->{colorscale} =~ /^\[/) ? $self->{colorscale} : "'$self->{colorscale}'";
-	my $xPoints = $self->{xPoints};
-	my $yPoints = $self->{yPoints};
-	my $zPoints = $self->{zPoints};
-	my $jsOut   = '';
-
-	if ($self->{isJS}) {
-		$xPoints = "xData${id}_$count";
-		$yPoints = "yData${id}_$count";
-		$zPoints = "zData${id}_$count";
-		$jsOut   = $self->genJS($id, $count);
+	} else {
+		$JSout .= <<END_OUTPUT;
+	for (var t = $self->{tMin}; t < $self->{tMax}; t += $self->{tStep}) {
+		xData${id}_$count.push(xFunc${id}_$count(t));
+		yData${id}_$count.push(yFunc${id}_$count(t));
+		zData${id}_$count.push(zFunc${id}_$count(t));
+	}
+END_OUTPUT
 	}
 
-	return $jsOut . <<END_OUTPUT;
-	var plotlyData${id}_$count = {
-		x: $xPoints,
-		y: $yPoints,
-		z: $zPoints,
-		type: 'surface',
-		opacity: $self->{opacity},
-		colorscale: $scale,
-		showscale: false,
-	};
-END_OUTPUT
-}
-
-# plotly3D curve plots
-package plotly3D::Curve;
-
-sub new {
-	my $self  = shift;
-	my $class = ref($self) || $self;
-
-	$self = bless {
-		tMin       => 0,
-		tMax       => 6 * main::pi,
-		tStep      => 0,
-		tCount     => 100,
-		xFunc      => sub { cos($_[0]) },
-		yFunc      => sub { sin($_[0]) },
-		zFunc      => sub { $_[0] },
-		autoGen    => 1,
-		isJS       => 0,
-		xPoints    => '',
-		yPoints    => '',
-		zPoints    => '',
-		width      => 5,
-		colorscale => 'RdBu',
-		opacity    => 1,
-		@_,
-	}, $class;
-	$self->{tStep} = ($self->{tMax} - $self->{tMin}) / $self->{tCount} unless $self->{tStep};
-	# Adjust max value to deal with rounding errors.
-	$self->{tMax} += $self->{tStep} / 2;
-	$self->buildArray if ($self->{autoGen} && !$self->{isJS});
-
-	return $self;
+	return $JSout;
 }
 
 sub buildArray {
@@ -450,12 +439,27 @@ sub buildArray {
 	my $xPts = '';
 	my $yPts = '';
 	my $zPts = '';
-	my $t;
 
-	for ($t = $self->{tMin}; $t < $self->{tMax}; $t += $self->{tStep}) {
-		$xPts .= $self->{xFunc}($t) . ',';
-		$yPts .= $self->{yFunc}($t) . ',';
-		$zPts .= $self->{zFunc}($t) . ',';
+	if ($self->{nVars} == 2) {
+		for (my $u = $self->{uMin}; $u < $self->{uMax}; $u += $self->{uStep}) {
+			my @xTmp = ();
+			my @yTmp = ();
+			my @zTmp = ();
+			for (my $v = $self->{vMin}; $v < $self->{vMax}; $v += $self->{vStep}) {
+				push @xTmp, $self->{xFunc}($u, $v);
+				push @yTmp, $self->{yFunc}($u, $v);
+				push @zTmp, $self->{zFunc}($u, $v);
+			}
+			$xPts .= '[' . join(',', @xTmp) . '],';
+			$yPts .= '[' . join(',', @yTmp) . '],';
+			$zPts .= '[' . join(',', @zTmp) . '],';
+		}
+	} else {
+		for (my $t = $self->{tMin}; $t < $self->{tMax}; $t += $self->{tStep}) {
+			$xPts .= $self->{xFunc}($t) . ',';
+			$yPts .= $self->{yFunc}($t) . ',';
+			$zPts .= $self->{zFunc}($t) . ',';
+		}
 	}
 	chop $xPts;
 	chop $yPts;
@@ -465,61 +469,122 @@ sub buildArray {
 	$self->{zPoints} = "[$zPts]";
 }
 
-sub genJS {
-	my $self  = shift;
-	my $id    = shift || 1;
-	my $count = shift || 1;
-	return <<END_OUTPUT;
-	var xData${id}_$count = [];
-	var yData${id}_$count = [];
-	var zData${id}_$count = [];
+# plotly3D surface plots
+package plotly3D::Plot::Surface;
+our @ISA = ('plotly3D::Plot');
 
-	function xFunc${id}_$count(t) {
-		$self->{xFunc}
-	}
-	function yFunc${id}_$count(t) {
-		$self->{yFunc}
-	}
-	function zFunc${id}_$count(t) {
-		$self->{zFunc}
-	}
+sub new {
+	my $self    = shift;
+	my $data    = shift;
+	my $uBounds = shift;
+	my $vBounds = shift;
+	my $class   = ref($self) || $self;
 
-	for (var t = $self->{tMin}; t < $self->{tMax}; t += $self->{tStep}) {
-		xData${id}_$count.push(xFunc${id}_$count(t));
-		yData${id}_$count.push(yFunc${id}_$count(t));
-		zData${id}_$count.push(zFunc${id}_$count(t));
-	}
-END_OUTPUT
+	Value::Error('First input must be an array with three items.')
+		unless (ref($data) eq 'ARRAY' && scalar(@$data) == 3);
+	Value::Error('Second input must be an array with two or three items.')
+		unless (ref($uBounds) eq 'ARRAY' && scalar(@$uBounds) > 1);
+	Value::Error('Third input must be an array with two or three items.')
+		unless (ref($vBounds) eq 'ARRAY' && scalar(@$vBounds) > 1);
+
+	$self = bless {
+		funcType   => 'jsmd',
+		colorscale => 'RdBu',
+		opacity    => 1,
+		variables  => [ 'u', 'v' ],
+		nVars      => 2,
+		@_,
+	}, $class;
+
+	# Parse input to create function and variable bounds.
+	my ($uCount, $vCount);
+	$self->parseFunc($data);
+	($self->{uMin}, $self->{uMax}, $uCount) = @$uBounds;
+	($self->{vMin}, $self->{vMax}, $vCount) = @$vBounds;
+	$uCount        = 20 unless $uCount;
+	$vCount        = 20 unless $vCount;
+	$self->{uStep} = ($self->{uMax} - $self->{uMin}) / $uCount;
+	$self->{uMax} += $self->{uStep} / 2;    # Fudge factor to deal with rounding issues.
+	$self->{vStep} = ($self->{vMax} - $self->{vMin}) / $vCount;
+	$self->{vMax} += $self->{vStep} / 2;    # Fudge factor to deal with rounding issues.
+
+	return $self;
 }
 
 sub HTML {
-	my $self    = shift;
-	my $id      = shift || 1;
-	my $count   = shift || 1;
-	my $scale   = ($self->{colorscale} =~ /^\[/) ? $self->{colorscale} : "'$self->{colorscale}'";
-	my $xPoints = $self->{xPoints};
-	my $yPoints = $self->{yPoints};
-	my $zPoints = $self->{zPoints};
-	my $jsOut   = '';
+	my $self  = shift;
+	my $id    = shift || 1;
+	my $count = shift || 1;
+	my $scale = ($self->{colorscale} =~ /^\[/) ? $self->{colorscale} : "'$self->{colorscale}'";
+	$self->genPoints($id, $count);
 
-	if ($self->{isJS}) {
-		$xPoints = "xData${id}_$count";
-		$yPoints = "yData${id}_$count";
-		$zPoints = "zData${id}_$count";
-		$jsOut   = $self->genJS($id, $count);
-	}
-
-	return $jsOut . <<END_OUTPUT;
+	return $self->genJS($id, $count) . <<END_OUTPUT;
 	var plotlyData${id}_$count = {
-		x: $xPoints,
-		y: $yPoints,
-		z: $zPoints,
+		x: $self->{xPoints},
+		y: $self->{yPoints},
+		z: $self->{zPoints},
+		type: 'surface',
+		opacity: $self->{opacity},
+		colorscale: $scale,
+		showscale: false,
+	};
+END_OUTPUT
+}
+
+# plotly3D curve plots
+package plotly3D::Plot::Curve;
+our @ISA = ('plotly3D::Plot');
+
+sub new {
+	my $self    = shift;
+	my $data    = shift;
+	my $tBounds = shift;
+	my $class   = ref($self) || $self;
+
+	Value::Error('First input must be an array with three items.')
+		unless (ref($data) eq 'ARRAY' && scalar(@$data) == 3);
+	Value::Error('Second input must be an array with two or three items.')
+		unless (ref($tBounds) eq 'ARRAY' && scalar(@$tBounds) > 1);
+
+	$self = bless {
+		funcType   => 'jsmd',
+		width      => 5,
+		colorscale => 'RdBu',
+		opacity    => 1,
+		variables  => ['t'],
+		nVars      => 1,
+		@_,
+	}, $class;
+
+	# Parse input to create function and variable bounds.
+	my $tCount;
+	$self->parseFunc($data);
+	($self->{tMin}, $self->{tMax}, $tCount) = @$tBounds;
+	$tCount = 100 unless $tCount;
+	$self->{tStep} = ($self->{tMax} - $self->{tMin}) / $tCount;
+	$self->{tMax} += $self->{tStep} / 2;    # Fudge factor to deal with rounding issues.
+
+	return $self;
+}
+
+sub HTML {
+	my $self  = shift;
+	my $id    = shift || 1;
+	my $count = shift || 1;
+	my $scale = ($self->{colorscale} =~ /^\[/) ? $self->{colorscale} : "'$self->{colorscale}'";
+	$self->genPoints($id, $count);
+
+	return $self->genJS($id, $count) . <<END_OUTPUT;
+	var plotlyData${id}_$count = {
+		x: $self->{xPoints},
+		y: $self->{yPoints},
+		z: $self->{zPoints},
 		type: 'scatter3d',
 		mode: 'lines',
 		opacity: $self->{opacity},
 		line: {
 			width: $self->{width},
-			color: $zPoints,
+			color: $self->{zPoints},
 			colorscale: $scale,
 		},
 	};
