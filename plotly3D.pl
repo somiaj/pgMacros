@@ -9,7 +9,7 @@ https://plotly.com/javascript/
 
 Loading this macro adds the Graph3D method which creates a 3D
 graph object. The graph object can be configured by a list of
-options of the form "option => value".
+options of the form "option => value" (see below).
 
     $graph = Graph3D(options);
 
@@ -18,15 +18,27 @@ The following adds a helix to the graph. The first array is
 the parametric functions x(t), y(t), and z(t), and the second
 array is the bounds with the optional number of points to plot.
 
-    $graph->addCurve(['cos(t)', 'sin(t)', 't'], [0, 6*pi, 150]);
+    $graph->addCurve(['3*cos(t)', '3*sin(t)', 't'], [0, 6*pi, 150]);
 
-Use the addSurface method to add a parametric surface to the graph.
-The following adds the parabolic surface z = x^2 + y^2. The first
-array is the parametric functions x(u,v), y(u,v), and z(u,v), followed
-by the u-bounds and v-bounds with optional number of points to plot.
+Use the addFunction method to add a two variable function surface
+to the graph. The following adds the function f(x,y) = x^2 + y^2.
+The first input is the function in terms of x and y, followed
+by the x-bounds and y-bounds with the optional number of points to plot.
 Note the total points computed is the product of the two numbers given.
 
-    $graph->addSurface(['u', 'v', 'u^2 + v^2'], [-5, 5, 20], [-5, 5, 20]);
+    $graph->addFunction('x^2 + y^2', [-4, 4], [-4, 4]);
+
+Use the addSurface method to add a parametric surface to the graph.
+The following adds a sphere of radius 3. The first array is the
+parametric functions x(u,v), y(u,v), and z(u,v), followed by the
+u-bounds and v-bounds with optional number of points to plot.
+Note the total points computed is the product of the two numbers given.
+
+    $graph->addSurface(
+        ['3*sin(v)*cos(u)', '3*sin(v)*sin(u)', '3*cos(v)'],
+        [0, 2*pi, 30],
+        [0, pi, 30]
+    );
 
 Output the graph in PGML using the Print method.
 
@@ -86,6 +98,21 @@ The current available options (and defaults) are:
   funcType   => 'jsmd',      How to interpret the parametric functions (see below).
 
   variables  => ['u', 'v'],  The variables to use in the JavaScript function.
+
+=head2 FUNCTIONS
+
+The addFunction method takes a string, which is a function f(x,y), followed by
+two arrays which give the x-bounds and y-bounds, with optional number of points
+to plot. This is a wrapper for addSurface in which the variables are x and y.
+See addSurface for the list of options. funcType => 'data' cannot be used with
+functions, use addSurface directly to plot data.
+
+    $graph->addFunction(
+        'zFunction',
+        [xMin, xMax, xCount],
+        [yMin, yMax, yCount],
+        options
+    );
 
 =head1 COLORSCALES
 
@@ -197,6 +224,23 @@ sub new {
 
 sub addSurface { push(@{ shift->{plots} }, plotly3D::Plot::Surface->new(@_)); }
 sub addCurve   { push(@{ shift->{plots} }, plotly3D::Plot::Curve->new(@_)); }
+
+sub addFunction {
+	my $self = shift;
+	my $func = shift;
+	my $b1   = shift;
+	my $b2   = shift;
+	my %opts = @_;
+	my @vars = ($opts{variables}) ? @{ $opts{variables} } : ('x', 'y');
+	my $type = $opts{funcType} || '';
+	if ($type eq 'perl') {
+		$self->addSurface([ sub { $_[0] }, sub { $_[1] }, $func ], $b1, $b2, %opts);
+	} elsif ($type eq 'data') {
+		Value::Error('Functions cannot use data. Use addSurface directly.');
+	} else {
+		$self->addSurface([ @vars, $func ], $b1, $b2, variables => [@vars], %opts);
+	}
+}
 
 sub TeX {
 	my $self = shift;
