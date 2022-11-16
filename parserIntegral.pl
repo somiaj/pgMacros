@@ -323,7 +323,7 @@ sub cmp_preprocess {
 				push(@errors,  $tmpAns->{ans_message});
 				push(@answers, $blank->copy);
 			} else {
-				push(@answers, $tmpAns->{student_value});
+				push(@answers, main::Formula($input));
 			}
 		} else {
 			push(@errors,  'Answer box ' . ($_ + 1) . ' is blank.');
