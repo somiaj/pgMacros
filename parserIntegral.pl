@@ -223,7 +223,8 @@ sub new {
 		Value::Error('Input must be a HASH or an ARRAY.');
 	}
 	$self->{integrals} = \%integrals;
-	$self->{dAkey}     = $dAkey;
+	$self->{dAkey} =~ s/ //g;    # Remove spaces from user provided key.
+	$self->{dAkey} = $dAkey unless $self->{dAkey};
 
 	return $self;
 }
@@ -300,7 +301,7 @@ sub cmp_preprocess {
 	my $dAkey   = $self->{integrals}{ $self->{dAkey} }->{diff};
 	my @errors  = ();
 	$ans->{_filter_name} = 'Build Integral';
-	$ans->{cmp_class} = $self->type;
+	$ans->{cmp_class}    = $self->type;
 
 	# Determine if previewing answer.
 	$ans->{isPreview} = $inputs->{previewAnswers} || (($inputs->{action} // '') =~ m/^Preview/);
