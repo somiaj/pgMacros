@@ -297,6 +297,7 @@ sub cmp_preprocess {
 	my $num     = $self->{num};
 	my $context = $self->{context};
 	my $inputs  = $main::inputs_ref;
+	my $isBlank = 1;
 	my $blank   = Value::makeValue('', context => $context);
 	my $dAkey   = $self->{integrals}{ $self->{dAkey} }->{diff};
 	my @errors  = ();
@@ -312,10 +313,11 @@ sub cmp_preprocess {
 	my (@answers, @raw);
 	foreach (0 .. 2 * $num + 1) {
 		my $input = $inputs->{ $self->ANS_NAME($_) };
+		$isBlank = 0 unless (!defined($input) || $input eq '');
 		push(@raw, defined($input) ? $input : '');
 		my $tmpAns =
 			(defined($input) && $input ne '')
-			? $dAkey->cmp(showDomainErrors => 0, showTypeWarnings => 0, showEqualErrors => 0)->evaluate($input)
+			? $dAkey->cmp(showDomainErrors => 0, showTypeWarnings => 1, showEqualErrors => 0)->evaluate($input)
 			: '';
 
 		# Use a blank answer to still build student's integral if there is an error.
@@ -337,12 +339,13 @@ sub cmp_preprocess {
 	my $integral = integralHash->new([ $func, $bounds, $diff ], $self->intOpts, strict => 0);
 	push(@errors, @{ $integral->{errors} });
 
+	$ans->{isBlank}              = $isBlank;
 	$ans->{errors}               = \@errors;
 	$ans->{student_value}        = $integral;
-	$ans->{original_student_ans} = join(' ; ', @raw);
-	$ans->{student_ans}          = $integral->string;
-	$ans->{preview_text_string}  = $ans->{student_ans};
-	$ans->{preview_latex_string} = $integral->TeX;
+	$ans->{original_student_ans} = $isBlank ? '' : join(' ; ', @raw);
+	$ans->{student_ans}          = $isBlank ? '' : $integral->string;
+	$ans->{preview_text_string}  = $isBlank ? '' : $ans->{student_ans};
+	$ans->{preview_latex_string} = $isBlank ? '' : $integral->TeX;
 	return $ans;
 }
 
@@ -358,7 +361,7 @@ sub cmp_int {
 	$ans->{_filter_name} = 'Check Integral';
 
 	# Stop if previewing answer.
-	return $ans if $ans->{isPreview};
+	return $ans if $ans->{isPreview} || $ans->{isBlank};
 
 	# Find integral based off of student's differential
 	my $s_dA = $s_int->{diff}->string =~ s/\*//gr;
