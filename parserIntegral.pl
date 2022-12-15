@@ -430,7 +430,7 @@ sub printIntegral {
 
 	# Deal with TeX and non HTML display modes first.
 	if ($main::displayMode eq 'TeX') {
-		$out = "$label \\(\\displaystyle";
+		$out = "\\(\\displaystyle $label = ";
 		foreach (0 .. $num) {
 			$out .= "\\int_{$lb[$_]}^{$ub[$_]}";
 		}
