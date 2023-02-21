@@ -45,7 +45,7 @@ sub fmtVal {
 	my ($val, $var) = @_;
 	return 0 unless ($val != 0 || $val =~ /^\w/);
 	return $val if ($var eq '');
-	$val = '' if ($val == 1);
-	$val = '-' if ($val == -1);
+	if ($val == 1) { $val = ''; }
+	elsif ($val == -1) { $val = '-'; }
 	return $val . $var;
 }
