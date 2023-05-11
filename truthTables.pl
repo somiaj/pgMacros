@@ -10,28 +10,14 @@ sub maTable {
 		singleResult => 1,
 		allowBlankAnswer => 1,
 		checkTypes => 1,
-		format => '<table class="mx-auto" border="1" style="text-align: center;">'
-			. '<thead><tr><th style="border-color: #000;">\( ' . $Plabel . ' \)</th>'
-			. '<th style="border-color: #000;">\( ' . $Qlabel . ' \)</th>'
-			. '<th style="border-color: #000;">\(' . $label . '\)</th></thead>'
-			. '<tbody><tr><td style="border-color: #000;">T</td>'
-			. '<td style="border-color: #000;">T</td>'
-			. '<td style="border-color: #000;">%s</td></tr>'
-			. '<tr><td style="border-color: #000;">T</td>'
-			. '<td style="border-color: #000;">F</td>'
-			. '<td style="border-color: #000;">%s</td></tr>'
-			. '<tr><td style="border-color: #000;">F</td>'
-			. '<td style="border-color: #000;">T</td>'
-			. '<td style="border-color: #000;">%s</td></tr>'
-			. '<tr><td style="border-color: #000;">F</td>'
-			. '<td style="border-color: #000;">F</td>'
-			. '<td style="border-color: #000;">%s</td></tr></tbody></table>',
-		tex_format => '\begin{array}{|c|c|c|} \hline ' . $Plabel . ' & ' . $Qlabel
-			. ' & ' . $label . ' \\\\ \hline '
-			. '\text{T} & \text{T} & %s \\\\ \hline '
-			. '\text{T} & \text{F} & %s \\\\ \hline '
-			. '\text{F} & \text{T} & %s \\\\ \hline '
-			. '\text{F} & \text{F} & %s \\\\ \hline\end{array}',
+		format => printHtmlTable(
+			["\\($Plabel\\)", "\\($Qlabel\\)", "\\($label\\)"],
+			['%s'], ['%s'], ['%s'], ['%s']
+		),
+		tex_format => printTexTable(
+			["$Plabel", "$Qlabel", "$label"],
+			['%s'], ['%s'], ['%s'], ['%s']
+		),
 		checker => sub {
 			my ($correct, $student, $ansHash) = @_;
 			my @c = @{$correct};
@@ -45,28 +31,49 @@ sub maTable {
 	);
 }
 
-sub printTables {
-	my @labels = @{$_[0]};
-	my @mas = @{$_[1]};
-	my $cols = scalar @labels;
-	my @rowHeader = (
-		["\\(\\quad $Plabel \\quad\\)","\\(\\quad $Qlabel \\quad\\)"],
-		['T','T'], ['T','F'], ['F','T'], ['F','F']
-	);
-	my $pTable = begintable($cols + 2);
-	for (my $j = 0; $j < 5; $j++) {
-		my @newRow = @{$rowHeader[$j]};
-		for (my $i = 0; $i < $cols; $i++) {
-			if ($j == 0) {
-				push(@newRow, "\\( $labels[$i] \\)");
-			} else {
-				push(@newRow, $mas[$i]->ans_rule(1));
-			}
-		}
-		$pTable .= row(@newRow);
+sub printHtmlTable {
+	my ($labels, @rows) = @_;
+	my $out = '<table class="pg-table" style="border: 2px solid; border-color: #000; text-align: center;">'
+		. '<thead><tr><th style="border: 1px solid;">'
+		. join('</th><th style="border: 1px solid;">', map { '\(' . $_ . '\)' } @$labels)
+		. '</th></tr></thead><tbody>';
+	my @rowHead = (['T', 'T'], ['T', 'F'], ['F', 'T'], ['F', 'F']);
+	for (@rows) {
+		my @row = (@{ shift(@rowHead) }, @$_);
+		$out .= '<tr><td style="border: 1px solid">' . join('</td><td style="border: 1px solid">', @row) . '</td></tr>';
 	}
-	$pTable .= endtable();
-	return $pTable;
+	return "$out</tbody></table>";
+}
+
+sub printTexTable {
+	my ($labels, @rows) = @_;
+	my $cols = scalar(@{$rows[0]}) + 2;
+	my $out = '\begin{array}{|' . ('c|') x $cols .'} \hline '
+			. join(' & ', @$labels) . '\\\\ \hline ';
+	my @rowHead = (
+		['\text{T}', '\text{T}'],
+		['\text{T}', '\text{F}'],
+		['\text{F}', '\text{T}'],
+		['\text{F}', '\text{F}']
+	);
+	for (@rows) {
+		my @row = (@{ shift(@rowHead) }, @$_);
+		$out .= join(' & ', map { $_ =~ /^[TF]$/ ? "\\text{$_}" : $_ } @row) . ' \\\\ \hline ';
+	}
+	return "$out\\end{array}";
+}
+
+sub printTexTable2 {
+	return '\(' . printTexTable(@_) . '\)';
+}
+
+sub printTables {
+	my ($labels, $multi_answers) = @_;
+	my @rows = (["\\quad $Plabel \\quad", "\\quad $Qlabel \\quad", @$labels]);
+	for (0..3) {
+		push(@rows, [ map { $_->ans_rule(1) } @{ $multi_answers } ]);
+	}
+	return MODES(TeX => printTexTable2(@rows), HTML => printHtmlTable(@rows));
 }
 
 sub printTable {
@@ -76,29 +83,15 @@ sub printTable {
 
 sub printAnsTables {
 	my @cols = @_;
-	my $ncols = scalar @cols;
-	my @rowHeader = (
-		["\\(\\quad $Plabel \\quad\\)","\\(\\quad $Qlabel \\quad\\)"],
-		['T','T'], ['T','F'], ['F','T'], ['F','F']
-	);
-	my $pTable = begintable($ncols + 2);
-	for (my $j = 0; $j < 5; $j++) {
-		my @newRow = @{$rowHeader[$j]};
-		for (my $i = 0; $i < $ncols; $i++) {
-			if ($j == 0) {
-				push(@newRow, "\\( $cols[$i][$j] \\)");
-			} else {
-				push(@newRow, $cols[$i][$j]);
-			}
-		}
-		$pTable .= row(@newRow);
+	my @rows = (["\\quad $Plabel \\quad", "\\quad $Qlabel \\quad", map { $_->[0] } @cols]);
+	for my $i (1..4) {
+		push(@rows, [ map { $_->[$i] } @cols ]);
 	}
-	$pTable .= endtable();
-	return $pTable;
+	return MODES(TeX => printTexTable2(@rows), HTML => printHtmlTable(@rows));
 }
 
 sub printAnsTable {
-	return printAnsTables(@_);
+	return ref($_->[0]) eq 'ARRAY' ? printAnsTables(@_) : printAnsTables([@_]);
 }
 
 sub comboTable {
