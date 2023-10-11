@@ -15,9 +15,9 @@ sub matrix2array {
 	} else {
 		$nvars = scalar(@{$rows[0]}) - 1;
 		if ($nvars < 5) {
-			$vars = [(x..z,w)[0..$nvars-1]];
+			$vars = [('x', 'y', 'z', 'w')[0 .. $nvars - 1]];
 		} else {
-			$vars = [map { "x_{$_}" } (1..$nvars)];
+			$vars = [map { "x_{$_}" } (1 .. $nvars)];
 		}
 	}
 
@@ -26,7 +26,7 @@ sub matrix2array {
 	foreach my $row (@rows) {
 		my $first  = 0;
 		my $rowstr = '';
-		foreach (0..$nvars) {
+		foreach (0 .. $nvars) {
 			my $val = $row->[$_];
 			my $var = $vars->[$_];
 			if ($_ == $first) {
