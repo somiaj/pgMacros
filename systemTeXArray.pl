@@ -4,16 +4,16 @@
 # Be sure to end $vars with '' for no variable for the constant term.
 sub matrix2array {
 	my $in_r  = shift;
-	my $vars  = shift || ['x', 'y', 'z', ''];
+	my $vars  = shift || [ 'x', 'y', 'z', '' ];
 	my @rows  = (ref($in_r) =~ /Matrix$/) ? $in_r->value : @$in_r;
 	my $nrows = $#rows;
 	my $nvars = scalar(@$vars) - 1;
 	my @A     = ();
 	my @As    = ();
 
-	foreach my $i (0..$nrows) {
+	foreach my $i (0 .. $nrows) {
 		my $first = 0;
-		foreach my $j (0..$nvars) {
+		foreach my $j (0 .. $nvars) {
 			my $val = $rows[$i][$j];
 			my $var = $vars->[$j];
 			if ($j == $first) {
@@ -33,19 +33,21 @@ sub matrix2array {
 			}
 		}
 	}
-	my $out = '\begin{array}{' . ('rc'x$nvars) . 'r}';
-	foreach $i (0..$nrows) {
-		$out .= join('&', ($A[$i][0], map { "$As[$i][$_] & $A[$i][$_]" } (1..$nvars))) . '\\\\';
+	my $out = '\begin{array}{' . ('rc' x $nvars) . 'r}';
+	foreach $i (0 .. $nrows) {
+		$out .= join('&', ($A[$i][0], map {"$As[$i][$_] & $A[$i][$_]"} (1 .. $nvars))) . '\\\\';
 	}
-	chop($out); chop($out);
+	chop($out);
+	chop($out);
 	$out .= '\end{array}';
 	return $out;
 }
+
 sub fmtVal {
 	my ($val, $var) = @_;
 	return 0 unless ($val != 0 || $val =~ /^\w/);
 	return $val if ($var eq '');
-	if ($val == 1) { $val = ''; }
+	if    ($val == 1)  { $val = ''; }
 	elsif ($val == -1) { $val = '-'; }
 	return $val . $var;
 }

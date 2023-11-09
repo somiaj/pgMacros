@@ -23,26 +23,26 @@ sub figTable {
 	);
 
 	$options{alt} = $options{caption} unless $options{alt};
-	my $caption   = $options{caption};
-	my $loc       = $options{caption_loc};
-	my $html_tags = $options{extra_html_tags};
+	my $caption     = $options{caption};
+	my $loc         = $options{caption_loc};
+	my $html_tags   = $options{extra_html_tags};
 	my %img_options = (
 		tex_size        => 950,
 		alt             => $options{alt},
 		extra_html_tags => $html_tags,
 	);
-	$img_options{width} = $options{width} if ($options{width});
+	$img_options{width}  = $options{width}  if ($options{width});
 	$img_options{height} = $options{height} if ($options{height});
 
 	my $figimg = ($options{isImage}) ? &image($img, %img_options) : $img;
 	if ($displayMode eq 'TeX') {
-		my $size  = $options{tex_size}*0.001;
-		$caption  = "{\\bf $caption}";
-		$out     .= "\\fbox{\\begin{minipage}{$size\\linewidth}\\centering\n";
-		$out     .= "$caption \\\\\n" if ($loc =~ /^top$/i);
-		$out     .= "$figimg \\\\\n";
-		$out     .= "$caption \\\\\n" if ($loc =~ /^bottom$/i);
-		$out     .= "\\end{minipage}}\n"
+		my $size = $options{tex_size} * 0.001;
+		$caption = "{\\bf $caption}";
+		$out .= "\\fbox{\\begin{minipage}{$size\\linewidth}\\centering\n";
+		$out .= "$caption \\\\\n" if ($loc =~ /^top$/i);
+		$out .= "$figimg \\\\\n";
+		$out .= "$caption \\\\\n" if ($loc =~ /^bottom$/i);
+		$out .= "\\end{minipage}}\n";
 	} elsif ($displayMode =~ /^HTML/) {
 		my $fig_class = "figure $options{fig_class} $options{fig_class_extra}";
 		my $cap_class = "figure-caption $options{cap_class}";
@@ -50,16 +50,16 @@ sub figTable {
 		if ($options{div_height} || $options{div_width}) {
 			$div_style = 'style="';
 			$div_style .= "height: $options{div_height}px;" if ($options{div_height});
-			$div_style .= "width: $options{div_width}px;" if ($options{div_width});
+			$div_style .= "width: $options{div_width}px;"   if ($options{div_width});
 			$div_style .= '" ';
 		}
-		$figimg  =~ s/image-view-elt/image-view-elt d-block mx-auto figure-img img-fuild/;
+		$figimg =~ s/image-view-elt/image-view-elt d-block mx-auto figure-img img-fuild/;
 		$caption = " <strong>$caption</strong> ";
-		$out    .= '<figure class="' . $fig_class . '">';
-		$out    .= '<figcaption class="' . $cap_class . '">' . $caption . '</figcaption>' if ($loc =~ /^top$/i);
-		$out    .= '<div ' . $div_style . 'class="m-2">' . $figimg . '</div>';
-		$out    .= '<figcaption class="' . $cap_class . '">' . $caption . '</figcaption>' if ($loc =~ /^bottom$/i);
-		$out    .= '</figure>';
+		$out .= '<figure class="' . $fig_class . '">';
+		$out .= '<figcaption class="' . $cap_class . '">' . $caption . '</figcaption>' if ($loc =~ /^top$/i);
+		$out .= '<div ' . $div_style . 'class="m-2">' . $figimg . '</div>';
+		$out .= '<figcaption class="' . $cap_class . '">' . $caption . '</figcaption>' if ($loc =~ /^bottom$/i);
+		$out .= '</figure>';
 	} else {
 		$out = "Error: figTable: Unknown displayMode: $displayMode.\n";
 		warn $out;

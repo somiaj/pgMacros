@@ -92,31 +92,32 @@ Check if a list is an injective function:
 
 $funcChecker = sub {
 	my ($correct, $student, $ansHash, $value) = @_;
-	my $domain = $ansHash->{domain};
+	my $domain   = $ansHash->{domain};
 	my $codomain = $ansHash->{codomain};
 	if ($domain->type ne 'Set' || $codomain->type ne 'Set') {
 		Value->Error('Domain and codomain must be finite set of real numbers.');
 	}
 	my $hideWarnings = $ansHash->{hideWarnings} || 0;
-	my $setProduct = $ansHash->{setProduct} || '\(A\times B\)';
-	my $isInjective = $ansHash->{isInjective} || 0;
+	my $setProduct   = $ansHash->{setProduct}   || '\(A\times B\)';
+	my $isInjective  = $ansHash->{isInjective}  || 0;
 	my $isSurjective = $ansHash->{isSurjective} || 0;
 	my $isIncreasing = $ansHash->{isIncreasing} || 0;
 	my $isDecreasing = $ansHash->{isDecreasing} || 0;
-	my $isStrict = $ansHash->{isStrict} || 0;
+	my $isStrict     = $ansHash->{isStrict}     || 0;
+
 	if ($ansHash->{isBijective}) {
-		$isInjective = 1;
+		$isInjective  = 1;
 		$isSurjective = 1;
 	}
-	my $nCorrect = scalar($domain->value); # Number of correct points in list
-	my $n = scalar(@$student);  # Number of items in student's answer
-	my $score = 0;              # Number of correct items in list
-	my @errors = ();            # Waring message list
-	my %domainCheck = ();       # Hash to check full domain is used
-	my %codomainCheck = ();     # Hash to check if full codomain is used
+	my $nCorrect      = scalar($domain->value);    # Number of correct points in list
+	my $n             = scalar(@$student);         # Number of items in student's answer
+	my $score         = 0;                         # Number of correct items in list
+	my @errors        = ();                        # Waring message list
+	my %domainCheck   = ();                        # Hash to check full domain is used
+	my %codomainCheck = ();                        # Hash to check if full codomain is used
 
 	# Update answer preview to include set brackets
-	$ansHash->{preview_latex_string} = '\Big\lbrace ' . $ansHash->{preview_latex_string} . '\Big\rbrace';
+	$ansHash->{preview_latex_string}     = '\Big\lbrace ' . $ansHash->{preview_latex_string} . '\Big\rbrace';
 	$ansHash->{correct_ans_latex_string} = '\Big\lbrace ' . $ansHash->{correct_ans_latex_string} . '\Big\rbrace';
 
 	# Check if preview, then return
@@ -124,8 +125,8 @@ $funcChecker = sub {
 
 	# Main loop to check all points.
 	for (my $i = 0; $i < $n; $i++) {
-		my $ith = Value::List->NameForNumber($i+1);
-		my $p = $student->[$i];
+		my $ith = Value::List->NameForNumber($i + 1);
+		my $p   = $student->[$i];
 
 		# Check if item is a point
 		if ($p->type ne 'Point' || $p->value != 2) {
@@ -135,7 +136,7 @@ $funcChecker = sub {
 
 		# Check if point is in the domain
 		my ($a, $b) = $p->value;
-		my $inDomain = $domain->contains("{$a}");
+		my $inDomain   = $domain->contains("{$a}");
 		my $inCodomain = $codomain->contains("{$b}");
 		$domainCheck{$a}++ if ($inDomain);
 		$codomainCheck{$b}++ if ($inDomain && $inCodomain);
@@ -144,10 +145,10 @@ $funcChecker = sub {
 
 	# Is this set a function?
 	my $isFunction = (scalar @errors == 0) ? 1 : 0;
-	my $dupCheck = 0;
+	my $dupCheck   = 0;
 	foreach my $key (keys %domainCheck) {
 		if ($domainCheck{$key} > 1) {
-			$dupCheck = 1;
+			$dupCheck   = 1;
 			$isFunction = 0;
 		} else {
 			$score++;
@@ -184,29 +185,29 @@ $funcChecker = sub {
 
 	# Check if increasing or decreasing.
 	if ($isFunction && ($isIncreasing || $isDecreasing)) {
-		my $check = 1;
+		my $check  = 1;
 		my $strict = ($isStrict) ? ' strictly' : '';
 		for (my $i = 1; $i < $n; $i++) {
 			my ($x1, $y1) = $student->[$i]->value;
 			for (my $j = 0; $j < $i; $j++) {
 				my ($x2, $y2) = $student->[$j]->value;
-				if ($isIncreasing &&
-					(
-						($x1 < $x2 && $y1 > $y2) ||
-						($x2 < $x1 && $y2 > $y1) ||
-						($isStrict && $y1 == $y2)
-					))
+				if (
+					$isIncreasing
+					&& (($x1 < $x2 && $y1 > $y2)
+						|| ($x2 < $x1 && $y2 > $y1)
+						|| ($isStrict && $y1 == $y2))
+					)
 				{
 					$score = 0;
 					$check = 0;
 					push(@errors, "This function is not$strict increasing.");
 				}
-				if ($isDecreasing &&
-					(
-						($x1 < $x2 && $y1 < $y2) ||
-						($x2 < $x1 && $y2 < $y1) ||
-						($isStrict && $y1 == $y2)
-					))
+				if (
+					$isDecreasing
+					&& (($x1 < $x2 && $y1 < $y2)
+						|| ($x2 < $x1 && $y2 < $y1)
+						|| ($isStrict && $y1 == $y2))
+					)
 				{
 					$score = 0;
 					$check = 0;
@@ -219,6 +220,6 @@ $funcChecker = sub {
 	}
 
 	undef @errors if ($hideWarnings);
-	return($score, @errors);
+	return ($score, @errors);
 };
 

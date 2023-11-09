@@ -1,3 +1,4 @@
+
 =head1 NAME
 
 contextSigmaStrings.pl - Value object whose answers are list of strings from an alphabet Sigma
@@ -26,19 +27,19 @@ sub _contextSigmaStrings_init {
 	$context->operators->clear();
 	$context->functions->clear();
 	$context->strings->clear();
-	$context->{pattern}{number} = "^\$";
-	$context->variables->{patterns} = {};
-	$context->strings->{patterns}{"(.|\n)*"} = [-20,'str'];
-	$context->{value}{"String()"} = "context::SigmaStrings";
-	$context->{value}{"String"} = "context::SigmaStrings::Value::String";
-	$context->{parser}{String} = "context::SigmaStrings::Parser::String";
+	$context->{pattern}{number}              = "^\$";
+	$context->variables->{patterns}          = {};
+	$context->strings->{patterns}{"(.|\n)*"} = [ -20, 'str' ];
+	$context->{value}{"String()"}            = "context::SigmaStrings";
+	$context->{value}{"String"}              = "context::SigmaStrings::Value::String";
+	$context->{parser}{String}               = "context::SigmaStrings::Parser::String";
 	$context->flags->set(noLaTeXstring => "\\longleftarrow");
 	$context->update;
 }
 
 # Handle creating String() constants
 package context::SigmaStrings;
-sub new {shift; main::Compute(@_)}
+sub new { shift; main::Compute(@_) }
 
 # Replacement for Parser::String that uses the original string verbatim
 # (but replaces \r and \r\n by \n to handle different browser multiline input)
@@ -47,12 +48,11 @@ our @ISA = ('Parser::String');
 
 sub new {
 	my $self = shift;
-	my ($equation,$value,$ref) = @_;
+	my ($equation, $value, $ref) = @_;
 	$value = $equation->{string};
 	$value =~ s/\r\n?/\n/g;
-	$self->SUPER::new($equation,$value,$ref);
+	$self->SUPER::new($equation, $value, $ref);
 }
-
 
 # Replacement for Value::String that creates preview strings
 # and includes the list checker.
@@ -67,13 +67,13 @@ sub char_list {
 }
 
 sub TeX {
-	my $self = shift;
+	my $self  = shift;
 	my $value = $self->value;
 	$value =~ s/ //g;
 	my @values = split(',', $value);
 	if (length($value) > 30) {
 		my $out = '\begin{array}{l}';
-		my $i = 0;
+		my $i   = 0;
 		while ($i < scalar @values) {
 			my $s = 0;
 			while ($i < scalar @values && $s < 20) {
@@ -87,11 +87,11 @@ sub TeX {
 		$out .= '\end{array}';
 		return $out;
 	}
-	return join(',', map { "\\text{$_}" } @values);
+	return join(',', map {"\\text{$_}"} @values);
 }
 
 sub string {
-	my $self = shift;
+	my $self  = shift;
 	my $value = $self->value;
 	$value =~ s/,/, /g;
 	return $value;
@@ -101,7 +101,7 @@ sub cmp_preprocess {
 	my $self = shift;
 	my $ans  = shift;
 	if ($self->getFlag("noLaTeXresults")) {
-		$ans->{preview_latex_string} = $self->getFlag("noLaTeXstring");
+		$ans->{preview_latex_string}     = $self->getFlag("noLaTeXstring");
 		$ans->{correct_ans_latex_string} = "";
 	} else {
 		$ans->{preview_latex_string} = $ans->{student_value}->TeX
@@ -116,7 +116,7 @@ sub cmp_preprocess {
 }
 
 sub num_word {
-	my $self = shift;
+	my $self  = shift;
 	my $value = shift;
 	if ($value > 18) {
 		$value++;
@@ -126,9 +126,11 @@ sub num_word {
 		$suffix = 'rd' if ($value % 10 == 3);
 		return "$value$suffix";
 	}
-	return ('first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth',
-		'ninth', 'tenth', 'eleventh', 'twelfth', 'thirteenth', 'fourteenth',
-		'fifteenth', 'sixteenth', 'seventeenth', 'eighteenth', 'nineteenth')[$value];
+	return (
+		'first',     'second',    'third',       'fourth',     'fifth',   'sixth',      'seventh',
+		'eighth',    'ninth',     'tenth',       'eleventh',   'twelfth', 'thirteenth', 'fourteenth',
+		'fifteenth', 'sixteenth', 'seventeenth', 'eighteenth', 'nineteenth'
+	)[$value];
 }
 
 sub cmp_postprocess {
@@ -154,8 +156,9 @@ sub cmp_postprocess {
 	my $nfound  = 0;
 	my @errors  = ();
 	my $nerrors = 0;
+
 	for ($i = 0; $i < $n; $i++) {
-		if ($found{$slist[$i]}) {
+		if ($found{ $slist[$i] }) {
 			$nerrors++;
 			push(@errors, 'The ' . $self->num_word($i) . ' string is a repeat.');
 		} elsif (grep(/^$slist[$i]$/, @clist)) {
@@ -180,6 +183,6 @@ sub cmp_postprocess {
 		$ans->{score} = ($nerrors == 0 && $nfound == $nCor) ? 1 : 0;
 	}
 	return $ans;
-};
+}
 
 1;

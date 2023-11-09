@@ -13,11 +13,11 @@ sub matrix2array {
 	if (defined($vars)) {
 		$nvars = scalar(@$vars);
 	} else {
-		$nvars = scalar(@{$rows[0]}) - 1;
+		$nvars = scalar(@{ $rows[0] }) - 1;
 		if ($nvars < 5) {
-			$vars = [('x', 'y', 'z', 'w')[0 .. $nvars - 1]];
+			$vars = [ ('x', 'y', 'z', 'w')[ 0 .. $nvars - 1 ] ];
 		} else {
-			$vars = [map { "x_{$_}" } (1 .. $nvars)];
+			$vars = [ map {"x_{$_}"} (1 .. $nvars) ];
 		}
 	}
 
@@ -49,13 +49,14 @@ sub matrix2array {
 		}
 		push @arrayRows, $rowstr;
 	}
-	return '\begin{array}{' . ('rc'x$nvars) . 'r}' . join('\\\\', @arrayRows) . '\end{array}';
+	return '\begin{array}{' . ('rc' x $nvars) . 'r}' . join('\\\\', @arrayRows) . '\end{array}';
 }
+
 sub fmtVal {
 	my ($val, $var) = @_;
 	return $val unless (defined($var) && $var ne '');
 	return 0 if ($val eq '0');
-	$val = '' if ($val eq '1');
+	$val = ''  if ($val eq '1');
 	$val = '-' if ($val eq '-1');
 	return $val . $var;
 }

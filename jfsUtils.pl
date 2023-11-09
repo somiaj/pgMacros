@@ -1,3 +1,4 @@
+
 =name DESCRIPTION
 
 Collection of some more useful utility functions too
@@ -16,21 +17,23 @@ sub nth_word {
 		$suffix = 'rd' if ($n % 10 == 3);
 		return "$n$suffix";
 	}
-	my $out = ('zeroth', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh',
-		   'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth', 'thirteenth', 'fourteenth',
-		   'fifteenth', 'sixteenth', 'seventeenth', 'eighteenth', 'nineteenth')[$n];
+	my $out = (
+		'zeroth',     'first',      'second',     'third',     'fourth',    'fifth',
+		'sixth',      'seventh',    'eighth',     'ninth',     'tenth',     'eleventh',
+		'twelfth',    'thirteenth', 'fourteenth', 'fifteenth', 'sixteenth', 'seventeenth',
+		'eighteenth', 'nineteenth'
+	)[$n];
 	$out = ucfirst($out) if ($uc);
 	return $out;
 }
 
 sub NchooseK {
 	my ($n, $k) = @_;
-	my @array   = 0..($n-1);
-	my @out     = ();
+	my @array = 0 .. ($n - 1);
+	my @out   = ();
 	while (@out < $k) {
-		push(@out, splice(@array, random(0,$#array,1), 1));
+		push(@out, splice(@array, random(0, $#array, 1), 1));
 	}
 	return @out;
 }
-
 

@@ -21,44 +21,46 @@
 $walkcmp = sub {
 	my ($cor, $stu, $ans) = @_;
 	return 0 if $ans->{isPreview};
-	my $start = $ans->{start_vertex};
-	my $end = $ans->{end_vertex};
-	my $labels = $ans->{labels};
-	my %lnum = map { $labels->[$_] => $_ } (0..scalar(@$labels)-1);
-	my $adjMat = $ans->{adj_mat};
+	my $start   = $ans->{start_vertex};
+	my $end     = $ans->{end_vertex};
+	my $labels  = $ans->{labels};
+	my %lnum    = map { $labels->[$_] => $_ } (0 .. scalar(@$labels) - 1);
+	my $adjMat  = $ans->{adj_mat};
 	my $allowed = join('', @$labels);
 	$stu = $stu->value;
 	$stu =~ s/\s//g;
 	Value->Error('The walk can only include the vertices shown in the graph.') if ($stu =~ /[^$allowed,]/);
 	my @walk = split(',', $stu);
 	my $minL = $ans->{min_length} || 1;
-	my @msg = ();
+	my @msg  = ();
 	push(@msg, "The walk must have at least $minL edges.") if ($#walk < $minL);
 	push(@msg, "The walk must start at vertex $start") if (defined($start) && $walk[0] ne $start);
-	push(@msg, "The walk must end at the vertex $end") if (defined($end) && $walk[-1] ne $end);
+	push(@msg, "The walk must end at the vertex $end") if (defined($end)   && $walk[-1] ne $end);
+
 	if (scalar @msg > 0) {
 		Value->Error($msg[0]) unless $ans->{hide_errors};
 		return 0;
 	}
- 
-	my %verts = (); # Don't count starting vertex initially.
+
+	my %verts = ();    # Don't count starting vertex initially.
 	my %edges = ();
-	foreach my $i (0..$#walk-1) {
-		my $v1 = $lnum{$walk[$i]};
-		my $v2 = $lnum{$walk[$i+1]};
-		push(@msg, $walk[$i] . ' is not a valid vertex.') unless defined($v1);
-		push(@msg, $walk[$i+1] . ' is not a valid vertex.') unless defined($v2);
-		push(@msg, 'There is no edge between ' . $walk[$i] . ' and ' . $walk[$i+1] . '.') unless ($adjMat->[$v1][$v2]);
+	foreach my $i (0 .. $#walk - 1) {
+		my $v1 = $lnum{ $walk[$i] };
+		my $v2 = $lnum{ $walk[ $i + 1 ] };
+		push(@msg, $walk[$i] . ' is not a valid vertex.')       unless defined($v1);
+		push(@msg, $walk[ $i + 1 ] . ' is not a valid vertex.') unless defined($v2);
+		push(@msg, 'There is no edge between ' . $walk[$i] . ' and ' . $walk[ $i + 1 ] . '.')
+			unless ($adjMat->[$v1][$v2]);
 		if (scalar @msg > 0) {
 			Value->Error($msg[0]) unless $ans->{hide_errors};
 			return 0;
 		}
-		$verts{$walk[$i+1]}++;
-		$edges{join('', lex_sort($walk[$i], $walk[$i+1]))}++;
+		$verts{ $walk[ $i + 1 ] }++;
+		$edges{ join('', lex_sort($walk[$i], $walk[ $i + 1 ])) }++;
 	}
 	my $isClosed = ($walk[0] eq $walk[-1]);
 	my $isOpen   = 1 - $isClosed;
-	$verts{$walk[0]}++ if ($ans->{count_start} || $isOpen); # Count starting vertex if the walk is open or forced.
+	$verts{ $walk[0] }++ if ($ans->{count_start} || $isOpen);    # Count starting vertex if the walk is open or forced.
 	my $dupEdges = 0;
 	foreach my $key (keys %edges) {
 		$dupEdges = 1 if ($edges{$key} > 1);
@@ -67,14 +69,15 @@ $walkcmp = sub {
 	foreach my $key (keys %verts) {
 		$dupVerts = 1 if ($verts{$key} > 1);
 	}
-	push(@msg, 'The walk uses a vertex more than once.') if ($ans->{unique_vertices} && $dupVerts);
-	push(@msg, 'The walk must use a vertex more than once.') if ($ans->{dup_vertices} && !$dupVerts);
-	push(@msg, 'The walk uses an edge more than once.') if ($ans->{unique_edges} && $dupEdges);
-	push(@msg, 'The walk must use an edge more than once.') if ($ans->{dup_edges} && !$dupEdges);
-	push(@msg, 'The walk is not closed.') if ($ans->{force_closed} && $isOpen);
-	push(@msg, 'The walk is not open.') if ($ans->{force_open} && $isClosed);
+	push(@msg, 'The walk uses a vertex more than once.')     if ($ans->{unique_vertices} && $dupVerts);
+	push(@msg, 'The walk must use a vertex more than once.') if ($ans->{dup_vertices}    && !$dupVerts);
+	push(@msg, 'The walk uses an edge more than once.')      if ($ans->{unique_edges}    && $dupEdges);
+	push(@msg, 'The walk must use an edge more than once.')  if ($ans->{dup_edges}       && !$dupEdges);
+	push(@msg, 'The walk is not closed.')                    if ($ans->{force_closed}    && $isOpen);
+	push(@msg, 'The walk is not open.')                      if ($ans->{force_open}      && $isClosed);
 	$minV = $ans->{min_vertices} || 0;
 	push(@msg, "The walk must use at least $minV unique vertices.") if (scalar(keys %verts) < $minV);
+
 	if (scalar @msg > 0) {
 		Value->Error($msg[0]) unless $ans->{hide_errors};
 		return 0;

@@ -1,3 +1,4 @@
+
 =head1 DESCRIPTION
 
 Creates a new AugmentedMatrix context in which matrices can be
@@ -20,7 +21,7 @@ same number of rows.
 
 =cut
 
-sub _contextAugmentedMatrix_init { context::Augmented::Matrix::Init() };
+sub _contextAugmentedMatrix_init { context::Augmented::Matrix::Init() }
 
 sub mkArray {
 	my $in  = shift;
@@ -34,15 +35,16 @@ sub mkArray {
 	}
 	return @out;
 }
+
 sub AugmentMatrix {
 	my @A     = mkArray(shift);
 	my $rows  = $#A;
-	my $split = scalar @{$A[0]};
+	my $split = scalar @{ $A[0] };
 	return unless ($rows);
 	while (@_) {
 		my @B = mkArray(shift);
 		next unless (ref($B[0]) eq 'ARRAY' && $rows == $#B);
-		map { push @{$A[$_]}, @{$B[$_]} } (0..$rows);
+		map { push @{ $A[$_] }, @{ $B[$_] } } (0 .. $rows);
 	}
 	my $C = Matrix(@A);
 	$C->split($split) if ($C->context->{name} eq 'AugmentedMatrix');
@@ -64,7 +66,7 @@ our @ISA = ('Value::Matrix');
 sub split {
 	my $self  = shift;
 	my $value = shift;
-	return 0 unless (defined($value) || defined($self->{split_at}));
+	return 0                 unless (defined($value) || defined($self->{split_at}));
 	return $self->{split_at} unless defined($value);
 	my ($rows, $cols) = $self->dimensions;
 	return unless ($value >= 0 && $value < $cols);
@@ -85,57 +87,82 @@ sub arrayString {
 	}
 	return $value;
 }
+
 sub TeX {
 	my $self = shift;
-	my $TeX = $self->SUPER::TeX(@_);
+	my $TeX  = $self->SUPER::TeX(@_);
 	return $self->arrayString($TeX);
 }
 
 # Override for the ans_array and text answer preview to draw the augmented matrix line.
 sub format_matrix_HTML {
-	my $self = shift; my $array = shift;
+	my $self    = shift;
+	my $array   = shift;
 	my %options = (open => '', close => '', sep => '', tth_delims => 0, @_);
 	$self->{format_options} = [%options] unless $self->{format_options};
 	my ($open, $close, $sep) = ($options{open}, $options{close}, $options{sep});
-	my ($rows, $cols) = (scalar(@{$array}), scalar(@{$array->[0]}));
-	my $HTML = ""; my $class = 'class="ans_array_cell"';
-	my $cell = "display:table-cell;vertical-align:middle;"; my $pad = "padding:4px 0;";
+	my ($rows, $cols) = (scalar(@{$array}), scalar(@{ $array->[0] }));
+	my $HTML       = "";
+	my $class      = 'class="ans_array_cell"';
+	my $cell       = "display:table-cell;vertical-align:middle;";
+	my $pad        = "padding:4px 0;";
 	my $sepAugment = '';
-	my $split = $self->split;
+	my $split      = $self->split;
+
 	if ($sep) {
-		$sep = '<span class="ans_array_sep" style="'.$cell.'padding:0 2px">'.$sep.'</span>';
+		$sep        = '<span class="ans_array_sep" style="' . $cell . 'padding:0 2px">' . $sep . '</span>';
 		$sepAugment = $sep;
 	} else {
-		$sep = '<span class="ans_array_sep WTF" style="'.$cell.'width:8px;"></span>';
-		$sepAugment = '<span class="ans_array_sep" style="'.$cell.'width:12px;background: linear-gradient(#000, #000) no-repeat center/1px 100%;"></span>';
+		$sep = '<span class="ans_array_sep WTF" style="' . $cell . 'width:8px;"></span>';
+		$sepAugment =
+			'<span class="ans_array_sep" style="'
+			. $cell
+			. 'width:12px;background: linear-gradient(#000, #000) no-repeat center/1px 100%;"></span>';
 	}
-	$sepAugment = '</span>'.$sepAugment.'<span '.$class.' style="'.$cell.$pad.'">';
-	$sep = '</span>'.$sep.'<span '.$class.' style="'.$cell.$pad.'">';
-	if ($options{top_labels} ) {
-		$HTML .= '<span style="display:table-row"><span '.$class.' style="'.$cell.$pad.'">'
-			. join($sep,@{$options{top_labels}})
+	$sepAugment = '</span>' . $sepAugment . '<span ' . $class . ' style="' . $cell . $pad . '">';
+	$sep        = '</span>' . $sep . '<span ' . $class . ' style="' . $cell . $pad . '">';
+	if ($options{top_labels}) {
+		$HTML .=
+			'<span style="display:table-row"><span '
+			. $class
+			. ' style="'
+			. $cell
+			. $pad . '">'
+			. join($sep, @{ $options{top_labels} })
 			. '</span></span>';
 	}
-	foreach my $i (0..$rows-1) {
-		my @list = EVALUATE(@{$array->[$i]});
-		$HTML .= '<span style="display:table-row"><span '.$class.' style="'.$cell.$pad.'">' . $list[0];
-		foreach (1..$#list) {
+	foreach my $i (0 .. $rows - 1) {
+		my @list = EVALUATE(@{ $array->[$i] });
+		$HTML .= '<span style="display:table-row"><span ' . $class . ' style="' . $cell . $pad . '">' . $list[0];
+		foreach (1 .. $#list) {
 			$HTML .= ($_ == $split) ? $sepAugment . $list[$_] : $sep . $list[$_];
 		}
 		$HTML .= '</span></span>';
 	}
-	$HTML = '<span class="ans_array_table" style="display:inline-table; vertical-align:middle">'.$HTML.'</span>';
-	$open = $self->format_delimiter($open,$rows,$options{tth_delims});
-	$close = $self->format_delimiter($close,$rows,$options{tth_delims});
+	$HTML  = '<span class="ans_array_table" style="display:inline-table; vertical-align:middle">' . $HTML . '</span>';
+	$open  = $self->format_delimiter($open,  $rows, $options{tth_delims});
+	$close = $self->format_delimiter($close, $rows, $options{tth_delims});
 	if ($open ne '' || $close ne '') {
 		my $delim = "display:inline-block; vertical-align:middle;";
-		$HTML = '<span class="ans_array_open" style="'.$delim.' margin-right:4px">'.$open.'</span>'
+		$HTML =
+			'<span class="ans_array_open" style="'
+			. $delim
+			. ' margin-right:4px">'
+			. $open
+			. '</span>'
 			. $HTML
-			. '<span class="ans_array_close" style="'.$delim.' margin-left:4px">'.$close.'</span>'
+			. '<span class="ans_array_close" style="'
+			. $delim
+			. ' margin-left:4px">'
+			. $close
+			. '</span>';
 	}
-	return '<span class="ans_array" style="display:inline-block;vertical-align:.5ex">'.$HTML.'</span>';
+	return '<span class="ans_array" style="display:inline-block;vertical-align:.5ex">' . $HTML . '</span>';
 }
-sub EVALUATE {map {(Value::isFormula($_) && $_->isConstant? $_->eval: $_)} @_}
+
+sub EVALUATE {
+	map { (Value::isFormula($_) && $_->isConstant ? $_->eval : $_) } @_;
+}
 
 sub cmp_preprocess {
 	my $self = shift;

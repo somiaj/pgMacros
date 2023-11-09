@@ -10,22 +10,25 @@ Functions to create random adjacency matrices:
 Returns a random $size X $size adjacency matrix with $edges edges.
 
 =cut
-sub random_graph {randomMatrix(0, @_)}
-sub random_digraph {randomMatrix(1, @_)}
-sub random_adjMatrix {randomMatrix(0, @_)}
+
+sub random_graph     { randomMatrix(0, @_) }
+sub random_digraph   { randomMatrix(1, @_) }
+sub random_adjMatrix { randomMatrix(0, @_) }
+
 sub randomMatrix {
 	my $directed = shift;
 	my $size     = shift;
 	my $edges    = shift;
-	my $max      = ($directed) ? $size*$size : $size*($size-1)/2;
-	$edges       = $max if ($edges > $max);
-	my @edges    = NchooseK($max, $edges);
-	my $edge     = 0;
-	my @adjMat   = (map { [(0) x $size] } 1..$size);
-	my $stop     = $size - 1;
-	foreach my $i (0..$stop) {
+	my $max      = ($directed) ? $size * $size : $size * ($size - 1) / 2;
+	$edges = $max if ($edges > $max);
+	my @edges  = NchooseK($max, $edges);
+	my $edge   = 0;
+	my @adjMat = (map { [ (0) x $size ] } 1 .. $size);
+	my $stop   = $size - 1;
+
+	foreach my $i (0 .. $stop) {
 		$stop = $i - 1 unless ($directed);
-		foreach my $j (0..$stop) {
+		foreach my $j (0 .. $stop) {
 			if (grep(/^$edge$/, @edges)) {
 				$adjMat[$i][$j] = 1;
 				$adjMat[$j][$i] = 1 unless ($directed);
@@ -100,27 +103,27 @@ sub create_tikz_graph {
 
 	# Set random bits
 	foreach ('swap_xy', 'reverse_x', 'reverse_y') {
-		$options{$_} = random(0,1,1) if ($options{$_} == -1);
+		$options{$_} = random(0, 1, 1) if ($options{$_} == -1);
 	}
 
 	# Create vertices
 	my $vertices = '';
-	my @order    = ($options{shuffle}) ? NchooseK($size, $size) : (0..$size-1);
+	my @order    = ($options{shuffle}) ? NchooseK($size, $size) : (0 .. $size - 1);
 	my $edge     = 0;
-	my @side     = (map { 'below' } 1..$size);
+	my @side     = (map {'below'} 1 .. $size);
 	my $nodes    = $options{node_loc};
 	foreach my $i (@order) {
 		# Allow a position array to be sent
 		my $vert_loc = '';
 		if (ref($nodes) eq 'ARRAY') {
-			my ($x, $y) = $options{swap_xy} ? ($nodes->[$edge][1], $nodes->[$edge][0])
-					: ($nodes->[$edge][0], $nodes->[$edge][1]);
-			$side[$order[$edge]] = $nodes->[$edge][2] if defined($nodes->[$edge][2]);
-			$x = -$x if $options{reverse_x};
-			$y = -$y if $options{reverse_y};
-			$vert_loc = "$x,$y";
+			my ($x, $y) =
+				$options{swap_xy} ? ($nodes->[$edge][1], $nodes->[$edge][0]) : ($nodes->[$edge][0], $nodes->[$edge][1]);
+			$side[ $order[$edge] ] = $nodes->[$edge][2] if defined($nodes->[$edge][2]);
+			$x                     = -$x                if $options{reverse_x};
+			$y                     = -$y                if $options{reverse_y};
+			$vert_loc              = "$x,$y";
 		} else {
-			my $theta = ($edge * floor(360/$size + 0.5) + $options{rotation}) % 360;
+			my $theta = ($edge * floor(360 / $size + 0.5) + $options{rotation}) % 360;
 			if ($theta <= 65 || $theta >= 295) {
 				$side[$i] = 'right';
 			} elsif ($theta > 65 && $theta < 115) {
@@ -132,16 +135,16 @@ sub create_tikz_graph {
 		}
 		$edge++;
 		my $label = (defined($labels->[$i])) ? '{' . $options{label_format} . ' ' . $labels->[$i] . '}' : '{}';
-		$label = ($options{label_inside}) ? "[] $label" :  "[label=$side[$i]:$label]{}";
+		$label = ($options{label_inside}) ? "[] $label" : "[label=$side[$i]:$label]{}";
 		$vertices .= " \\vertex ($i) at ($vert_loc) $label;";
 	}
 
 	# Create edges
 	my $edges = '';
-	my $stop = $size - 1;
-	foreach my $i (0..$stop) {
+	my $stop  = $size - 1;
+	foreach my $i (0 .. $stop) {
 		$stop = $i - 1 unless ($options{directed});
-		foreach my $j (0..$stop) {
+		foreach my $j (0 .. $stop) {
 			if ($options{directed}) {
 				next unless ($adjMat->[$i]->[$j] == 1);
 				my $dir = ($i == $j) ? "loop $side[$i]" : 'bend right';
@@ -151,21 +154,21 @@ sub create_tikz_graph {
 			}
 		}
 	}
-	my $path = ($options{directed}) ? '' : '\path';
+	my $path      = ($options{directed}) ? '' : '\path';
 	my $tikz_code = "$vertices $path $edges;";
-	my $gr = createTikZImage();
+	my $gr        = createTikZImage();
 	$gr->ext('svg');
 	$gr->addToPreamble('\newcommand{\vertex}{\node[vertex]}');
 	$gr->tikzLibraries('arrows.meta,calc') if ($options{directed});
-	my $tikz_opts = 'scale='
-			. $options{scale}
-			. ',vertex/.style={'
-			. $options{node_style}
-			. ',draw,minimum size='
-			. $options{node_size}
-			. 'pt,inner sep='
-			. $options{inner_sep}
-			. 'pt}';
+	my $tikz_opts =
+		'scale='
+		. $options{scale}
+		. ',vertex/.style={'
+		. $options{node_style}
+		. ',draw,minimum size='
+		. $options{node_size}
+		. 'pt,inner sep='
+		. $options{inner_sep} . 'pt}';
 	$tikz_opts .= ',edge/.style={-{Latex[length=3mm, width=2mm]}}' if ($options{directed});
 	$gr->tikzOptions($tikz_opts);
 	$gr->tex($tikz_code);
@@ -177,12 +180,12 @@ sub create_tikz_graph {
 sub get_edges {
 	my $adjMat = shift;
 	my $n      = scalar(@$adjMat) - 1;
-	my $labels = shift || [0..$n];
+	my $labels = shift || [ 0 .. $n ];
 	my $start  = shift || '{';
 	my $end    = shift || '}';
 	my @edges  = ();
-	foreach my $i (0..$n) {
-		foreach $j (0..$i) {
+	foreach my $i (0 .. $n) {
+		foreach $j (0 .. $i) {
 			push(@edges, "$start$labels->[$i],$labels->[$j]$end") if ($adjMat->[$i]->[$j] == 1);
 		}
 	}
@@ -193,11 +196,11 @@ sub get_edges {
 sub check_symmetric {
 	my $adjMat = shift;
 	my $n      = scalar(@$adjMat);
-	my $m      = scalar(@{$adjMat->[0]});
+	my $m      = scalar(@{ $adjMat->[0] });
 	my $sym    = 1;
 	return 0 unless ($n == $m);
-	foreach my $i (1..$n-1) {
-		foreach my $j (0..$i-1) {
+	foreach my $i (1 .. $n - 1) {
+		foreach my $j (0 .. $i - 1) {
 			$sym = 0 unless ($adjMat->[$i]->[$j] == $adjMat->[$j]->[$i]);
 		}
 	}
@@ -211,8 +214,8 @@ sub check_equal {
 	my $n    = $#mat1;
 	my $equ  = 1;
 	return 0 unless ($n == $#mat2);
-	foreach my $i (0..$n) {
-		foreach my $j (0..$n) {
+	foreach my $i (0 .. $n) {
+		foreach my $j (0 .. $n) {
 			$equ = 0 unless ($mat1->[$i]->[$j] == $mat2->[$i]->[$j]);
 		}
 	}
@@ -220,6 +223,8 @@ sub check_equal {
 }
 
 # Turns a string from PGnauGraphCatalog.pl into an adjacency matrix.
-sub nau2mat { map { [split(' ', $_)] } split(';', shift) }
+sub nau2mat {
+	map { [ split(' ', $_) ] } split(';', shift);
+}
 
 1;

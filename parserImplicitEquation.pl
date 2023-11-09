@@ -365,7 +365,7 @@ sub createPoints {
 	my $genFunction = $self->getFlag('GenerateFunction', 0);
 	if (ref($genFunction) eq 'CODE') {
 		my @zero;
-		foreach (1..$num_points) {
+		foreach (1 .. $num_points) {
 			push(@zero, &$genFunction($_));
 		}
 		$self->{solutions} = [@zero];
