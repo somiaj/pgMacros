@@ -140,6 +140,8 @@ The following list of options, option => value, can be added after the integral 
     labelSize     => percent,   The percent size of the label.
                                 Default is 100.
 
+    labelPreview  => {0, 1},    Include the label in the answer preview. Default: 0
+
     strict        => {0, 1},    Should the integral parser error out if bounds
                                 include invalid variables.
                                 Default: 1
@@ -196,6 +198,7 @@ sub new {
 		constantVars  => [],
 		label         => '',
 		labelSize     => 100,
+		labelPreivew  => 0,
 		strict        => 1,
 		@_
 	}, $class;
@@ -345,7 +348,8 @@ sub cmp_preprocess {
 	$ans->{original_student_ans} = $isBlank ? '' : join(' ; ', @raw);
 	$ans->{student_ans}          = $isBlank ? '' : $integral->string;
 	$ans->{preview_text_string}  = $isBlank ? '' : $ans->{student_ans};
-	$ans->{preview_latex_string} = $isBlank ? '' : $integral->TeX;
+	$ans->{preview_latex_string} =
+		$isBlank ? '' : ($self->{labelPreview} && $self->{label} ? $self->{label} . '=' : '') . $integral->TeX;
 	return $ans;
 }
 
