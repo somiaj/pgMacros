@@ -66,6 +66,7 @@ sub configure_axes {
 	my $axes   = $pgplot->axes;
 	my $grid   = $axes->grid;
 	my ($xmin, $ymin, $xmax, $ymax) = $axes->bounds;
+	my ($axes_height, $axes_width) = $pgplot->size;
 	my $show_grid   = $axes->style('show_grid');
 	my $xmajor      = $show_grid && $grid->{xmajor} ? 'true'          : 'false';
 	my $xminor_num  = $show_grid && $grid->{xmajor} ? $grid->{xminor} : 0;
@@ -106,6 +107,8 @@ sub configure_axes {
 	my $tikzCode = <<END_TIKZ;
 		\\begin{axis}
 		[
+			height=$axes_height,
+			width=$axes_width,
 			${axis_on_top}axis x line=$axis_x_line,
 			axis y line=$axis_y_line,
 			xlabel={$xlabel},
