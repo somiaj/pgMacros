@@ -293,7 +293,7 @@ sub cmp_preprocess {
 	my $num     = $self->{num};
 	my $context = $self->{context};
 	my $inputs  = $main::inputs_ref;
-	my $isBlank = 1;
+	my $blanks  = 0;
 	my $blank   = Value::makeValue('', context => $context);
 	my $dAkey   = $self->{integrals}{ $self->{dAkey} }->{diff};
 	my @errors  = ();
@@ -308,16 +308,23 @@ sub cmp_preprocess {
 	# a Value object, so using the diff formula evaluate function for this task.
 	my (@answers, @raw);
 	foreach (0 .. 2 * $num + 1) {
-		my $input = $inputs->{ $self->ANS_NAME($_) };
-		$isBlank = 0 unless (!defined($input) || $input eq '');
-		push(@raw, defined($input) ? $input : '');
-		my $tmpAns =
-			(defined($input) && $input ne '')
-			? $dAkey->cmp(showDomainErrors => 0, showTypeWarnings => 1, showEqualErrors => 0)->evaluate($input)
-			: '';
+		my $input = '';
+		if (defined($inputs->{ $self->ANS_NAME($_) })) {
+			$input = $inputs->{ $self->ANS_NAME($_) };
+		}
+		$blanks++ if ($input eq '');
+		push(@raw, $input);
+		my $tmpAns = '';
+		if ($input ne '') {
+			$tmpAns = $dAkey->cmp(
+				showDomainErrors => 0,
+				showTypeWarnings => 1,
+				showEqualErrors  => 0
+			)->evaluate($input);
+		}
 
 		# Use a blank answer to still build student's integral if there is an error.
-		if (ref($tmpAns) eq 'AnswerHash') {
+		if ($tmpAns ne '' && ref($tmpAns) eq 'AnswerHash') {
 			if ($tmpAns->{ans_message}) {
 				push(@errors,  $tmpAns->{ans_message});
 				push(@answers, $blank->copy);
@@ -329,6 +336,7 @@ sub cmp_preprocess {
 			push(@answers, $blank->copy);
 		}
 	}
+	my $isBlank  = ($blanks > 0);
 	my $bounds   = [ map { [ shift(@answers), shift(@answers) ] } 1 .. $num ];
 	my $func     = shift(@answers);
 	my $diff     = shift(@answers);
@@ -562,7 +570,7 @@ sub new {
 	my $self    = shift;
 	my $class   = ref($self) || $self;
 	my $context = Value::isContext($_[0]) ? shift : main::Context();
-	my ($int)   = @_;
+	my $int     = shift;
 
 	$self = bless {
 		context      => $context,
