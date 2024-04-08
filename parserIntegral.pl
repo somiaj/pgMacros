@@ -159,14 +159,13 @@ of integrals, and not adding integrals together).
 
 =cut
 
-sub _parserIntegral_init {
-	main::PG_restricted_eval('sub SingleIntegral {parser::Integral->new("int", 1, @_)}');
-	main::PG_restricted_eval('sub DoubleIntegral {parser::Integral->new("int", 2, @_)}');
-	main::PG_restricted_eval('sub TripleIntegral {parser::Integral->new("int", 3, @_)}');
-	main::PG_restricted_eval('sub SigmaSum {parser::Integral->new("sum", 1, @_)}');
-	main::PG_restricted_eval('sub Sigma2Sum {parser::Integral->new("sum", 2, @_)}');
-	main::PG_restricted_eval('sub Sigma3Sum {parser::Integral->new("sum", 3, @_)}');
-}
+BEGIN { strict->import; }
+
+sub _parserIntegral_init { }
+
+sub SingleIntegral { parser::Integral->new(1, @_) }
+sub DoubleIntegral { parser::Integral->new(2, @_) }
+sub TripleIntegral { parser::Integral->new(3, @_) }
 
 package parser::Integral;
 our @ISA = ('Value');
@@ -174,20 +173,16 @@ our @ISA = ('Value');
 our $answerPrefix = 'InTeGrAl_';
 
 sub new {
-	my $self      = shift;
-	my $class     = ref($self) || $self;
-	my $context   = Value::isContext($_[0]) ? shift : main::Context();
-	my $type      = shift;
-	my $num       = shift;
-	my $ints      = shift;
+	my $self    = shift;
+	my $class   = ref($self) || $self;
+	my $context = Value::isContext($_[0]) ? shift : main::Context();
+	my ($num, $ints) = @_;
 	my %integrals = ();
 	my $dAkey     = '';
 
-	Value->Error("Unknown type $type") unless ($type eq 'int' || $type eq 'sum');
 	$self = bless {
 		context       => $context,
 		isValue       => 1,
-		type          => $type,
 		num           => $num,
 		integrals     => {},
 		dAkey         => '',
@@ -234,17 +229,16 @@ sub new {
 
 # Options to pass to integralHashes.
 sub intOpts {
-	$self = shift;
-	map { $_ => $self->{$_} } ('constantVars', 'label', 'type', 'strict');
+	my ($self) = @_;
+	return map { $_ => $self->{$_} } ('constantVars', 'label', 'type', 'strict');
 }
 
 # Note this doesn't test if bounds can be swapped.
 # Leave it up to problem author to use this appropriately.
 sub swapBounds {
-	my $self  = shift;
-	my $s_int = shift;
-	my $ints  = $self->{integrals};
-	my $num   = $self->{num} - 1;
+	my ($self, $s_int) = @_;
+	my $ints = $self->{integrals};
+	my $num  = $self->{num} - 1;
 	return 0 unless ($self->{swapBounds});
 
 	# For single integrals allow reversing of bounds.
@@ -276,8 +270,8 @@ sub swapBounds {
 
 # Build answer evaluator.
 sub cmp {
-	my $self = shift;
-	my $ans  = new AnswerEvaluator;
+	my ($self) = @_;
+	my $ans = new AnswerEvaluator;
 
 	$ans->ans_hash(
 		type                     => $self->type,
@@ -295,8 +289,7 @@ sub cmp {
 
 # Get student answers and build student integral.
 sub cmp_preprocess {
-	my $self    = shift;
-	my $ans     = shift;
+	my ($self, $ans) = @_;
 	my $num     = $self->{num};
 	my $context = $self->{context};
 	my $inputs  = $main::inputs_ref;
@@ -355,8 +348,7 @@ sub cmp_preprocess {
 
 # Check integral
 sub cmp_int {
-	my $self      = shift;
-	my $ans       = shift;
+	my ($self, $ans) = @_;
 	my $s_int     = $ans->{student_value};
 	my $errors    = $ans->{errors};
 	my $num       = $self->{num};
@@ -414,15 +406,12 @@ sub cmp_int {
 }
 
 sub printIntegral {
-	my $self  = shift;
-	my $num   = $self->{num} - 1;
-	my $size  = $self->{size};
-	my $type  = $self->{type};
-	my $upos  = ($type eq 'int') ? ' style="position: relative; left: 15px;"'  : '';
-	my $lpos  = ($type eq 'int') ? ' style="position: relative; right: 15px;"' : '';
-	my $label = $self->{label} || '';
-	my $out   = '';
-	my $i     = 0;
+	my ($self) = @_;
+	my $num    = $self->{num} - 1;
+	my $size   = $self->{size};
+	my $label  = $self->{label} || '';
+	my $out    = '';
+	my $i      = 0;
 
 	# Create answer rules for bounds, integrand, and differential.
 	my (@lb, @ub);
@@ -462,17 +451,17 @@ ENDHTML
 		$out .= <<ENDHTML;
     <div style="grid-row-start: 1; grid-row-end: 2;">
         <div style="display: flex; flex-wrap: nowrap; flex-direction: row; align-items: flex-end; justify-content: center; height: 100%; padding: 5px;">
-          <div$upos>$ub[$_]</div>
+          <div style="position: relative; left: 15px;">$ub[$_]</div>
         </div>
     </div>
     <div style="grid-row-start: 2; grid-row-end: 3;">
         <div style="display: flex; flex-wrap: nowrap; flex-direction: row; align-items: center; justify-content: center; height: 100%; font-size: $size%;">
-            \\(\\displaystyle\\$type\\)
+            \\(\\displaystyle\\int\\)
         </div>
     </div>
     <div style="grid-row-start: 3; grid-row-end: 4;">
         <div style="display: flex; flex-wrap: nowrap; flex-direction: row; align-items: flex-start; justify-content: center; height: 100%; padding: 5px;">
-          <div$lpos>$lb[$_]</div>
+          <div  style="position: relative; right: 15px;">$lb[$_]</div>
         </div>
     </div>
 ENDHTML
@@ -494,32 +483,29 @@ ENDHTML
 }
 
 sub TeX {
-	my $self = shift;
-	my $dA   = $self->{dAkey};
+	my ($self) = @_;
+	my $dA = $self->{dAkey};
 	return $self->printTeX($self->{integrals}{$dA});
 }
 
 sub printTeX {
-	my $self     = shift;
-	my $integral = shift;
+	my ($self, $integral) = @_;
 	return $integral->TeX;
 }
 
 sub string {
-	my $self = shift;
-	my $dA   = $self->{dAkey};
+	my ($self) = @_;
+	my $dA = $self->{dAkey};
 	return $self->printString($self->{integrals}{$dA});
 }
 
 sub printString {
-	my $self     = shift;
-	my $integral = shift;
+	my ($self, $integral) = @_;
 	return $integral->string;
 }
 
 sub ANS_NAME {
-	my $self = shift;
-	my $i    = shift;
+	my ($self, $i) = @_;
 	return $self->{answerNames}{$i} if defined($self->{answerNames}{$i});
 	$self->{answerNames}{0}  = main::NEW_ANS_NAME() unless defined($self->{answerNames}{0});
 	$self->{answerNames}{$i} = $answerPrefix . $self->{answerNames}{0} . '_' . $i unless $i == 0;
@@ -527,10 +513,10 @@ sub ANS_NAME {
 }
 
 sub mk_ans_rule {
-	my $self = shift;
-	my $i    = shift;
-	my $size = shift || 1;
+	my ($self, $i, $size) = @_;
 	my $name = $self->ANS_NAME($i);
+	$size = 1 unless $size;
+
 	if ($i == 0) {
 		my $label = main::generate_aria_label($answerPrefix . $name . '_0');
 		return main::NAMED_ANS_RULE($name, $size, aria_label => $label);
@@ -539,10 +525,10 @@ sub mk_ans_rule {
 }
 
 sub type {
-	my $self = shift;
-	my $num  = $self->{num};
-	my $name = ($num < 4) ? ('Single', 'Double', 'Triple')[ $num - 1 ] : "$num-";
-	return ($self->{type} eq 'int') ? $name . 'Integral' : $name . 'SigmaSum';
+	my ($self) = @_;
+	my $num    = $self->{num};
+	my $name   = ($num < 4) ? ('Single', 'Double', 'Triple')[ $num - 1 ] : "$num-";
+	return $name . 'Integral';
 }
 
 sub ans_rule  { shift->printIntegral }
@@ -576,12 +562,11 @@ sub new {
 	my $self    = shift;
 	my $class   = ref($self) || $self;
 	my $context = Value::isContext($_[0]) ? shift : main::Context();
-	my $int     = shift;
+	my ($int)   = @_;
 
 	$self = bless {
 		context      => $context,
 		isValue      => 1,
-		type         => 'int',
 		constantVars => [],
 		label        => '',
 		bounds       => [],
@@ -615,7 +600,7 @@ sub new {
 # Convert integral parts to Formula objects.
 # Use Formula's as they give nicer output of constants like pi.
 sub mkValue {
-	my $self   = shift;
+	my ($self) = @_;
 	my $num    = $self->num;
 	my $errors = $self->{errors};
 
@@ -634,7 +619,7 @@ sub mkValue {
 
 # Check differential, bounds, and integrand use appropriate variables.
 sub checkIntegral {
-	my $self      = shift;
+	my ($self)    = @_;
 	my $num       = $self->num;
 	my $errors    = $self->{errors};
 	my $context   = $self->{context};
@@ -679,29 +664,27 @@ sub checkIntegral {
 
 # Nicely format variable list message.
 sub varMsg {
-	my $self = shift;
-	my $size = scalar(@_);
-	return 'constants'                     if ($size == 0);
-	return "the variable $_[0]"            if ($size == 1);
-	return "the variables $_[0] and $_[1]" if ($size == 2);
-	return 'the variables ' . join(', ', @_) =~ s/, ([^,]*)$/, and $1/r;
+	my ($self, @vars) = @_;
+	my $size = scalar(@vars);
+	return 'constants'                           if ($size == 0);
+	return "the variable $vars[0]"               if ($size == 1);
+	return "the variables $vars[0] and $vars[1]" if ($size == 2);
+	return 'the variables ' . join(', ', @vars) =~ s/, ([^,]*)$/, and $1/r;
 }
 
 # Test if formula only uses listed variables.
 sub testVars {
-	my $self = shift;
-	my $item = shift;
+	my ($self, $item, @vars) = @_;
 	return 1 unless (Value::isFormula($item));
 	my $used = 0;
-	foreach (@_) { $used++ if ($item->usesOneOf($_)); }
+	foreach (@vars) { $used++ if ($item->usesOneOf($_)); }
 	return (scalar(%{ $item->{variables} }) == $used);
 }
 
 # Nicely format which integral.
 sub boundString {
-	my $self = shift;
-	my $this = shift;
-	my $num  = $self->num;
+	my ($self, $this) = @_;
+	my $num = $self->num;
 	return ''                                  if $num == 1;
 	return ('outer', 'inner')[$this]           if $num == 2;
 	return ('outer', 'middle', 'inner')[$this] if $num == 3;
@@ -709,16 +692,16 @@ sub boundString {
 }
 
 sub TeX {
-	my $self = shift;
-	my $out  = '';
+	my ($self) = @_;
+	my $out = '';
 
 	foreach (@{ $self->{bounds} }) { $out .= '\int_{' . $_->[0]->TeX . '}^{' . $_->[1]->TeX . '} '; }
 	return "$out \\left(" . $self->{func}->TeX . '\right)\, ' . $self->{diff}->TeX;
 }
 
 sub string {
-	my $self = shift;
-	my $out  = '';
+	my ($self) = @_;
+	my $out = '';
 
 	foreach (@{ $self->{bounds} }) { $out .= 'int(' . $_->[0]->string . ', ' . $_->[1]->string . ') '; }
 	return "$out (" . $self->{func}->string . ') ' . $self->{diff}->string;
