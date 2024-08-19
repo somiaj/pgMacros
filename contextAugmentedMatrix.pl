@@ -157,7 +157,13 @@ sub format_matrix_HTML {
 			. $close
 			. '</span>';
 	}
-	return '<span class="ans_array" style="display:inline-block;vertical-align:.5ex">' . $HTML . '</span>';
+	return '<span class="ans_array" style="display:inline-block;vertical-align:.5ex"'
+		. ($options{ans_last_name}
+			? qq{ data-feedback-insert-element="$options{ans_last_name}" data-feedback-insert-method="append_content"}
+			: '')
+		. '>'
+		. $HTML
+		. '</span>';
 }
 
 sub EVALUATE {
