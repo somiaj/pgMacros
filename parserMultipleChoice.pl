@@ -35,7 +35,7 @@ Otherwise this will call C<parserRadioButtons.pl> and is equivalent to:
 
 =cut
 
-loadMacros('parserRadioButtons.pl', 'parserCheckboxList.pl');
+loadMacros('parserPopUp.pl', 'parserRadioButtons.pl', 'parserCheckboxList.pl', 'parserRadioMultiAnswer.pl');
 
 # Create the appropriate MultipleChoice object.
 sub MultipleChoice {
