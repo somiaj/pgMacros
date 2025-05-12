@@ -2,13 +2,13 @@
 # $rows is an array reference of coefficients of each equation or a Value::Matrix.
 # $vars is list reference of variables for the coefficients
 sub matrix2array {
-	my $in_r  = shift;
-	my $vars  = shift;
+	my ($in_r, $vars, $hline) = @_;
 	my @rows  = (ref($in_r) =~ /Matrix$/) ? $in_r->value : @$in_r;
 	my $nvars = 0;
 	my @A     = ();
 	my @As    = ();
 
+	$hline = -1 unless defined($hline);
 	# Figure out some variables if none were provided:
 	if (defined($vars)) {
 		$nvars = scalar(@$vars);
@@ -23,7 +23,8 @@ sub matrix2array {
 
 	# Loop through the rows to setup the array:
 	my @arrayRows = ();
-	foreach my $row (@rows) {
+	for my $n (0 .. $#rows) {
+		my $row    = $rows[$n];
 		my $first  = 0;
 		my $rowstr = '';
 		foreach (0 .. $nvars) {
@@ -47,9 +48,10 @@ sub matrix2array {
 				$rowstr .= '&&';
 			}
 		}
+		$rowstr .= $n == $hline ? '\\\\\\hline' : '\\\\';
 		push @arrayRows, $rowstr;
 	}
-	return '\begin{array}{' . ('rc' x $nvars) . 'r}' . join('\\\\', @arrayRows) . '\end{array}';
+	return '\begin{array}{' . ('rc' x $nvars) . 'r}' . join('', @arrayRows) . '\end{array}';
 }
 
 sub fmtVal {
