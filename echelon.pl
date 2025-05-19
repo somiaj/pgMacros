@@ -115,7 +115,7 @@ sub step_string {
 		} elsif ($alpha > 0) {
 			$alpha = "+$alpha";
 		}
-		return "${beta}R_$i +${alpha}R_$j \\rightarrow R_$j";
+		return "${beta}R_$i ${alpha}R_$j \\rightarrow R_$j";
 	}
 	if ($alpha) {
 		$alpha = $alpha == -1 ? '-' : "\\frac{1}{$alpha}";
