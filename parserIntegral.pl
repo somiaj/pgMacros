@@ -444,48 +444,52 @@ sub printIntegral {
 	if ($label) {
 		my $labelSize = $self->{labelSize};
 		$labelHTML = <<ENDHTML;
-    <div style="grid-row-start: 1; grid-row-end: 2;"></div>
-    <div style="grid-row-start: 2; grid-row-end: 3;">
-        <div style="display: flex; flex-wrap: nowrap; flex-direction: row; align-items: center; justify-content: center; height: 100%; font-size: $labelSize%;">
-            \\(\\displaystyle $label = \\)
-        </div>
-    </div>
-    <div style="grid-row-start: 3; grid-row-end: 4;"></div>
+			<div style="grid-row-start: 1; grid-row-end: 2;"></div>
+				<div style="grid-row-start: 2; grid-row-end: 3;">
+					<div style="display: flex; flex-wrap: nowrap; flex-direction: row; align-items: center;
+								justify-content: center; height: 100%; font-size: $labelSize%;">
+						\\(\\displaystyle $label = \\)
+					</div>
+				</div>
+			<div style="grid-row-start: 3; grid-row-end: 4;"></div>
 ENDHTML
 	}
 
 	$out = '<div style="display: inline-grid;">' . "\n$labelHTML";
 	foreach (0 .. $num) {
 		$out .= <<ENDHTML;
-    <div style="grid-row-start: 1; grid-row-end: 2;">
-        <div style="display: flex; flex-wrap: nowrap; flex-direction: row; align-items: flex-end; justify-content: center; height: 100%; padding: 5px;">
-          <div style="position: relative; left: 15px;">$ub[$_]</div>
-        </div>
-    </div>
-    <div style="grid-row-start: 2; grid-row-end: 3;">
-        <div style="display: flex; flex-wrap: nowrap; flex-direction: row; align-items: center; justify-content: center; height: 100%; font-size: $size%;">
-            \\(\\displaystyle\\int\\)
-        </div>
-    </div>
-    <div style="grid-row-start: 3; grid-row-end: 4;">
-        <div style="display: flex; flex-wrap: nowrap; flex-direction: row; align-items: flex-start; justify-content: center; height: 100%; padding: 5px;">
-          <div  style="position: relative; right: 15px;">$lb[$_]</div>
-        </div>
-    </div>
+			<div style="grid-row-start: 1; grid-row-end: 2;">
+				<div style="display: flex; flex-wrap: nowrap; flex-direction: row; align-items: flex-end;
+							justify-content: center; height: 100%; padding: 5px;">
+					<div style="position: relative; left: 15px;">$ub[$_]</div>
+				</div>
+			</div>
+			<div style="grid-row-start: 2; grid-row-end: 3;">
+				<div style="display: flex; flex-wrap: nowrap; flex-direction: row; align-items: center;
+							justify-content: center; height: 100%; font-size: $size%;">
+					\\(\\displaystyle\\int\\)
+				</div>
+			</div>
+			<div style="grid-row-start: 3; grid-row-end: 4;">
+				<div style="display: flex; flex-wrap: nowrap; flex-direction: row; align-items: flex-start;
+							justify-content: center; height: 100%; padding: 5px;">
+					<div  style="position: relative; right: 15px;">$lb[$_]</div>
+				</div>
+			</div>
 ENDHTML
 	}
 	$out .= <<ENDHTML;
-    <div style="grid-row-start: 1; grid-row-end: 2;"></div>
-    <div style="grid-row-start: 2; grid-row-end: 3;">
-        <div style="display: flex; flex-wrap: nowrap; flex-direction: row; align-items: center; height: 100%">
-            <div style="font-size: $size%;">\\(\\Big(\\)</div>
-            <div>$func</div>
-            <div style="font-size: $size%;">\\(\\Big)\\)</div>
-            <div>$diff</div>
-        </div>
-    </div>
-    <div style="grid-row-start: 3; grid-row-end: 4;"></div>
-</div>
+		<div style="grid-row-start: 1; grid-row-end: 2;"></div>
+			<div style="grid-row-start: 2; grid-row-end: 3;">
+				<div style="display: flex; flex-wrap: nowrap; flex-direction: row; align-items: center; height: 100%">
+					<div style="font-size: $size%;">\\(\\Big(\\)</div>
+					<div>$func</div>
+					<div style="font-size: $size%;">\\(\\Big)\\)</div>
+					<div>$diff</div>
+				</div>
+			</div>
+			<div style="grid-row-start: 3; grid-row-end: 4;"></div>
+		</div>
 ENDHTML
 	return $out;
 }
@@ -527,6 +531,7 @@ sub mk_ans_rule {
 
 	if ($i == 0) {
 		my $label = main::generate_aria_label($answerPrefix . $name . '_0');
+		main::RECORD_IMPLICIT_ANS_NAME($name);
 		return main::NAMED_ANS_RULE($name, $size, aria_label => $label);
 	}
 	return main::NAMED_ANS_RULE_EXTENSION($name, $size, answer_group_name => $self->{answerNames}{0});
