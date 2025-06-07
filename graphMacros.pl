@@ -1,4 +1,4 @@
-loadMacros('PGtikz.pl', 'NchooseK.pl');
+loadMacros('PGtikz.pl');
 
 =name
 
@@ -21,7 +21,7 @@ sub randomMatrix {
 	my $edges    = shift;
 	my $max      = ($directed) ? $size * $size : $size * ($size - 1) / 2;
 	$edges = $max if ($edges > $max);
-	my @edges  = NchooseK($max, $edges);
+	my @edges  = random_subset($edges, 0 .. $max - 1);
 	my $edge   = 0;
 	my @adjMat = (map { [ (0) x $size ] } 1 .. $size);
 	my $stop   = $size - 1;
@@ -108,7 +108,7 @@ sub create_tikz_graph {
 
 	# Create vertices
 	my $vertices = '';
-	my @order    = ($options{shuffle}) ? NchooseK($size, $size) : (0 .. $size - 1);
+	my @order    = ($options{shuffle}) ? random_subset($size, 0 .. $size - 1) : (0 .. $size - 1);
 	my $edge     = 0;
 	my @side     = (map {'below'} 1 .. $size);
 	my $nodes    = $options{node_loc};
@@ -175,18 +175,19 @@ sub create_tikz_graph {
 	return $gr;
 }
 
-# get_edges(adjacency matrix, labels, start string = '}', end string = '}');
+# get_edges(adjacency matrix, labels, start string = '}', end string = '}', separator = ',');
 # Returns an array of edges as ordered pairs.
 sub get_edges {
-	my $adjMat = shift;
-	my $n      = scalar(@$adjMat) - 1;
-	my $labels = shift || [ 0 .. $n ];
-	my $start  = shift || '{';
-	my $end    = shift || '}';
-	my @edges  = ();
-	foreach my $i (0 .. $n) {
-		foreach $j (0 .. $i) {
-			push(@edges, "$start$labels->[$i],$labels->[$j]$end") if ($adjMat->[$i]->[$j] == 1);
+	my $adjMat    = shift;
+	my $n         = scalar(@$adjMat) - 1;
+	my $labels    = shift || [ 0 .. $n ];
+	my $start     = shift // '{';
+	my $end       = shift // '}';
+	my $separator = shift // ',';
+	my @edges     = ();
+	for my $i (0 .. $n) {
+		for my $j (0 .. $i) {
+			push(@edges, "$start$labels->[$i]$separator$labels->[$j]$end") if $adjMat->[$i]->[$j];
 		}
 	}
 	return @edges;
