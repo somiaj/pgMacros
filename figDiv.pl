@@ -22,6 +22,9 @@ and their default values, are:
   caption_loc      => 'top'         The location of the caption. Can be set
                                     to either 'top' or 'bottom'.
 
+  alt              => ''            The alt text added to the image. If this
+                                    is not defined, the caption is used.
+
   width            => 0             The width of the image. If set to 0,
                                     no width is set, and the full image
                                     size is used.
@@ -77,7 +80,7 @@ sub figDiv {
 	my $loc         = $options{caption_loc};
 	my %img_options = (
 		tex_size        => 950,
-		alt             => $options{alt},
+		alt             => $options{alt} || $options{caption},
 		extra_html_tags => $options{extra_html_tags},
 	);
 	$img_options{width}  = $options{width}  if ($options{width});
